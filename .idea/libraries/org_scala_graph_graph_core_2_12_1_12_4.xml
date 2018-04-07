@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="org.scala-graph:graph-core_2.12:1.12.4" type="repository">
+    <properties maven-id="org.scala-graph:graph-core_2.12:1.12.4" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/graph-core_2.12-1.12.4.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/scala-library-2.12.4.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$PROJECT_DIR$/lib/graph-core_2.12-1.12.4-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
