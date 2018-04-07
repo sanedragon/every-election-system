@@ -1,7 +1,7 @@
 package elections
 
-import spire.math.Rational
-
+import spire.math._
+import spire.implicits._
 
 class RRVElectionResult(val rounds: List[RRVElectionRoundResult]) extends ElectionResult {
   lazy val winners = rounds.map(_.winner)
@@ -45,7 +45,7 @@ class ReweightedRankedVotingElection(val candidates: Set[Candidate]) extends Ele
 
   def weightBallots(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate]): Set[WeightedScoreBallot] = {
     ballots.map(b => {
-      val sumOfScoresOfWinners = electedCandidates.map(b.normalizedScores.getOrElse(_,Rational(0))).sum
+      val sumOfScoresOfWinners = electedCandidates.map(b.normalizedScores.getOrElse(_,Rational(0))).qsum
       val weight = weightConstant / (weightConstant + sumOfScoresOfWinners)
       WeightedScoreBallot(b, weight)
     })

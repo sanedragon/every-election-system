@@ -3,11 +3,14 @@ package elections
 import spire.math.Rational
 
 abstract class Ballot {
-  val election: Election
+  val election: Election[_,_]
   def validate: Boolean
 }
 
-case class ScoreBallot(val election: Election, val scores: Map[Candidate, Int]) extends Ballot {
+case class ScoreBallot(
+                        val election: Election[_ <: ScoreBallot, _ <: ElectionResult],
+                        val scores: Map[Candidate, Int]
+                      ) extends Ballot {
   def validate = {
     scores.keySet.forall(candidate => election.candidates.contains(candidate)) &&
     scores.values.forall(score => score >= 0)
@@ -19,7 +22,10 @@ case class ScoreBallot(val election: Election, val scores: Map[Candidate, Int]) 
   }
 }
 
-case class RankedBallot(val election: Election, val ranking: List[Candidate]) extends Ballot {
+case class RankedBallot(
+                         val election: Election[_ <: RankedBallot, _ <: ElectionResult],
+                         val ranking: List[Candidate]
+                       ) extends Ballot {
   def validate = {
     ranking.toSet.size == ranking.size &&
       ranking.nonEmpty &&
@@ -27,13 +33,19 @@ case class RankedBallot(val election: Election, val ranking: List[Candidate]) ex
   }
 }
 
-case class ApprovalBallot(val election: Election, val approvals: Map[Candidate, Boolean]) extends Ballot {
+case class ApprovalBallot(
+                           val election: Election[_ <: ApprovalBallot, _ <: ElectionResult],
+                           val approvals: Map[Candidate, Boolean]
+                         ) extends Ballot {
   def validate = {
     approvals.keySet.forall(candidate => election.candidates.contains(candidate))
   }
 }
 
-case class SingleVoteBallot(val election: Election, val vote: Candidate) extends Ballot {
+case class SingleVoteBallot(
+                             val election: Election[_ <: SingleVoteBallot, _ <: ElectionResult],
+                             val vote: Candidate
+                           ) extends Ballot {
   def validate = {
     election.candidates.contains(vote)
   }

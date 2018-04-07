@@ -14,8 +14,8 @@ class PluralityElectionSpec extends FlatSpec with Matchers {
 
     val result = election.countBallots(ballots)
 
-    result.numVotesByCandidate.get(alice) should be (1)
-    result.numVotesByCandidate.get(bob) should be (0)
+    result.numVotesByCandidate(alice) should be (1)
+    result.numVotesByCandidate(bob) should be (0)
 
     result.winner should be (alice)
   }
