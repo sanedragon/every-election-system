@@ -1,7 +1,7 @@
 # every-election-system
 The ambitious goal is to provide a system for running, simulating, and explaining results of elections using any voting method and any ballot counting method
 
-Current status is: initial implementation exists for several election systems.
+Current status is: initial implementation exists for several election systems. There are probably many errors, because no testing whatsoever has been developed yet.
 
 Planned components:
 - The election system models
