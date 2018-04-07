@@ -1,6 +1,8 @@
 package elections
 
-class PluralityElectionResult(val numVotesByCandidate: Map[Candidate, Int]) extends ElectionResult
+class PluralityElectionResult(val numVotesByCandidate: Map[Candidate, Int]) extends ElectionResult {
+  lazy val winner: Candidate = numVotesByCandidate.maxBy(_._2)._1
+}
 
 class PluralityElection(val candidates: Set[Candidate]) extends Election[SingleVoteBallot, PluralityElectionResult] {
   def countBallots(ballots: Set[SingleVoteBallot]): PluralityElectionResult = {
