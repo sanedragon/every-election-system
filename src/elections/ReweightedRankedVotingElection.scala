@@ -2,6 +2,7 @@ package elections
 
 import spire.math.Rational
 
+
 class RRVElectionResult(val rounds: List[RRVElectionRoundResult]) extends ElectionResult {
   lazy val winners = rounds.map(_.winner)
 }
@@ -18,12 +19,11 @@ class ReweightedRankedVotingElection(val candidates: Set[Candidate]) extends Ele
 
   def recurseRound(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate]): List[RRVElectionRoundResult] = {
     val candidatesNotYetElected = candidates -- electedCandidates
-    if(candidatesNotYetElected.nonEmpty) {
+    if (candidatesNotYetElected.isEmpty) Nil
+    else {
       val weightedBallots = weightBallots(ballots, electedCandidates)
       val roundResult = calculateRoundResult(weightedBallots, candidatesNotYetElected)
       roundResult :: recurseRound(ballots, electedCandidates + roundResult.winner)
-    } else {
-      Nil
     }
   }
 
