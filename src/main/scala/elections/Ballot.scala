@@ -1,13 +1,19 @@
 package elections
 
+import java.util.UUID
+
 import spire.math.Rational
 
 abstract class Ballot {
+  final val id = UUID.randomUUID()
   val election: Election[_,_]
   def validate: Boolean
+
+  final override def equals(other: Any) = other.isInstanceOf[Ballot] && other.asInstanceOf[Ballot].id == id
+  final override lazy val hashCode = election.hashCode() * 7 + id.hashCode()
 }
 
-case class ScoreBallot(
+class ScoreBallot(
                         val election: Election[_ <: ScoreBallot, _ <: ElectionResult],
                         val scores: Map[Candidate, Int]
                       ) extends Ballot {
@@ -22,7 +28,7 @@ case class ScoreBallot(
   }
 }
 
-case class RankedBallot(
+class RankedBallot(
                          val election: Election[_ <: RankedBallot, _ <: ElectionResult],
                          val ranking: List[Candidate]
                        ) extends Ballot {
@@ -33,7 +39,7 @@ case class RankedBallot(
   }
 }
 
-case class ApprovalBallot(
+class ApprovalBallot(
                            val election: Election[_ <: ApprovalBallot, _ <: ElectionResult],
                            val approvals: Map[Candidate, Boolean]
                          ) extends Ballot {
@@ -42,7 +48,7 @@ case class ApprovalBallot(
   }
 }
 
-case class SingleVoteBallot(
+class SingleVoteBallot(
                              val election: Election[_ <: SingleVoteBallot, _ <: ElectionResult],
                              val vote: Candidate
                            ) extends Ballot {
