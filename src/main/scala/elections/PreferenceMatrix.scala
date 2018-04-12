@@ -3,7 +3,7 @@ package elections
 import spire.math.Rational
 
 import scala.collection.mutable
-import scalax.collection.edge.WUnDiEdge
+import scalax.collection.edge._
 
 class PreferenceMatrix(val pairwisePreferences: Map[(Candidate, Candidate), Double]) {
   lazy val positivePreferences: Seq[Preference[Candidate]] = pairwisePreferences.toSeq.flatMap((p) => {
@@ -21,11 +21,17 @@ class PreferenceMatrix(val pairwisePreferences: Map[(Candidate, Candidate), Doub
 }
 
 case class Preference[T](yes: T, no: T, strength: Double)
-  extends WUnDiEdge[T]((yes, no), strength)
+  extends WDiEdge[T]((no, yes), strength)
 
 object PreferenceMatrix {
   def fromRankedBallots(candidates: Set[Candidate], ballots: Set[RankedBallot]): PreferenceMatrix = {
     val tally = mutable.Map.empty[(Candidate, Candidate), Int]
+    for(
+      x <- candidates;
+      y <- candidates if x != y
+    ) {
+      tally += ((x,y) -> 0)
+    }
 
     ballots.foreach(ballot => {
       candidates.foreach(x => {candidates.foreach(y => {
@@ -35,9 +41,9 @@ object PreferenceMatrix {
           val preferredCandidate: Option[Candidate] = ballot.ranking.find(candidate => candidate == x || candidate == y)
           preferredCandidate.foreach(c => {
             if(c == x) {
-              tally += ((x,y) -> (tally.getOrElse((x,y), 0) + 1))
+              tally((x,y)) += 1
             } else {
-              tally += ((x,y) -> (tally.getOrElse((x,y), 0) - 1))
+              tally((x,y)) -= 1
             }
           })
         }
@@ -49,26 +55,44 @@ object PreferenceMatrix {
     }))
   }
 
-  // TODO: Offer other options for counting scored ballots into a preference matrix
-  // Various choices include the treatment of unrated candidates, whether the difference in score is reduced to
-  // (-1, 0, 1) like the ranked ballot system is.
+  val normalizedScoresToPreferenceUsingDifference: (Option[Rational], Option[Rational]) => Option[Rational] =
+    (xScore, yScore) => {
+      (xScore, yScore) match {
+          case (Some(scoreX), Some(scoreY)) => Some(scoreX - scoreY)
+          case _ => None
+        }
+    }
+
+  val normalizedScoresToPreferenceIntegral: (Option[Rational], Option[Rational]) => Option[Rational] =
+    (xScore, yScore) => {
+      (xScore, yScore) match {
+          case (Some(scoreX), Some(scoreY)) if scoreX > scoreY => Some(1)
+          case (Some(scoreX), Some(scoreY)) if scoreX < scoreY => Some(-1)
+          case _ => None
+        }
+    }
+
   def fromScoreBallots(candidates: Set[Candidate], ballots: Set[ScoreBallot]): PreferenceMatrix = {
     val tally = mutable.Map.empty[(Candidate, Candidate), Rational]
+    for(
+      x <- candidates;
+      y <- candidates if x != y
+    ) {
+      tally += ((x,y) -> 0)
+    }
+
+    // TODO: Allow this to be changed
+    val preferenceCalc: (Option[Rational], Option[Rational]) => Option[Rational] =
+      normalizedScoresToPreferenceUsingDifference
 
     ballots.foreach(ballot => {
       candidates.foreach(x => {candidates.foreach(y => {
         if(x != y) {
-          val preference: Option[Rational] = (ballot.normalizedScores.get(x), ballot.normalizedScores.get(y)) match {
-            case (_, None)                    => None
-            case (None, _)                    => None
-            case (Some(scoreX), Some(scoreY)) => Some(scoreX - scoreY)
-          }
-          preference.foreach(p => {
-            tally += ((x,y) -> (tally.getOrElse((x,y), Rational(0)) + p))
-          })
+          preferenceCalc(ballot.normalizedScores.get(x), ballot.normalizedScores.get(y)).foreach(tally(x,y) += _)
         }
       })})
     })
+
 
     new PreferenceMatrix(tally.toMap.map(_ match {
       case (candidatePair: (Candidate, Candidate), strength: Rational) => candidatePair -> strength.toDouble
