@@ -1,7 +1,7 @@
 package elections
 
 class PreferenceMatrixSpec extends BaseSpec {
-  "A PreferenceMatrix" should "get tabulated correctly from a trivial set of ranked ballots" in {
+  "A PreferenceMatrix" should "tabulate a single ranked ballot correctly" in {
     val candidates = Set(alice, bob, carol)
     val election = new RankedBallotRankedPairsElection(candidates)
 
@@ -17,7 +17,7 @@ class PreferenceMatrixSpec extends BaseSpec {
     preferenceMatrix.pairwisePreferences((bob, alice)) should be (-1)
   }
 
-  it should "get tabulated correctly from a slightly less trivial set of ranked ballots" in {
+  it should "tabulate a small set of ranked ballots correctly" in {
     val candidates = Set(alice, bob, carol)
     val election = new RankedBallotRankedPairsElection(candidates)
 

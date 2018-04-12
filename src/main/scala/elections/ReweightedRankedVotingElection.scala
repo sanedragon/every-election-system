@@ -41,7 +41,7 @@ class ReweightedRankedVotingElection(val candidates: Set[Candidate]) extends Ele
     new RRVElectionRoundResult(roundResults)
   }
 
-  val weightConstant = Rational(1)
+  val weightConstant: Rational = 1
 
   def weightBallots(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate]): Set[WeightedScoreBallot] = {
     ballots.map(b => {
