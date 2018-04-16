@@ -21,7 +21,14 @@ class PreferenceMatrix(val pairwisePreferences: Map[(Candidate, Candidate), Doub
 }
 
 case class Preference[T](yes: T, no: T, strength: Double)
-  extends WDiEdge[T]((no, yes), strength)
+  extends WDiEdge[T]((no, yes), strength) {
+
+  override lazy val toString: String = yes.toString + " over " + no.toString + " at " + strength
+  override def equals(other: Any) = other match {
+    case Preference(y, n, s) => y == yes && n == no && s == strength
+    case _ => false
+  }
+}
 
 object PreferenceMatrix {
   def fromRankedBallots(candidates: Set[Candidate], ballots: Set[RankedBallot]): PreferenceMatrix = {

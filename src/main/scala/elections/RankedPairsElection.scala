@@ -35,7 +35,8 @@ abstract class RankedPairsElection[BallotT <: Ballot] extends Election[BallotT, 
     val acyclicPreferenceGraph: Graph[Candidate, Preference] = Graph.from[Candidate, Preference](candidates, acyclicPreferences)
 
     val winner = acyclicPreferenceGraph.get(candidates.head)
-      .pathUntil(candidate => !candidate.hasSuccessors).map(_.endNode.value).getOrElse(candidates.head)
+      .pathUntil(candidate => !candidate.hasSuccessors).map(_.endNode.value) // Follow the preference graph
+      .getOrElse(candidates.head) // Or we started at the winner
 
     new RankedPairsElectionResult(preferenceMatrix, strongestPreferences, acyclicPreferenceGraph, winner)
   }
