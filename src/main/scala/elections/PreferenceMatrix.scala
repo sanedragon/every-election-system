@@ -62,40 +62,34 @@ object PreferenceMatrix {
     }))
   }
 
-  val normalizedScoresToPreferenceUsingDifference: (Option[Rational], Option[Rational]) => Option[Rational] =
+  val normalizedScoresToPreferenceUsingDifference: (Option[Rational], Option[Rational]) => Rational =
     (xScore, yScore) => {
       (xScore, yScore) match {
-          case (Some(scoreX), Some(scoreY)) => Some(scoreX - scoreY)
-          case _ => None
+          case (Some(scoreX), Some(scoreY)) => scoreX - scoreY
+          case _                            => 0
         }
     }
 
-  val normalizedScoresToPreferenceIntegral: (Option[Rational], Option[Rational]) => Option[Rational] =
+  val normalizedScoresToPreferenceIntegral: (Option[Rational], Option[Rational]) => Rational =
     (xScore, yScore) => {
       (xScore, yScore) match {
-          case (Some(scoreX), Some(scoreY)) if scoreX > scoreY => Some(1)
-          case (Some(scoreX), Some(scoreY)) if scoreX < scoreY => Some(-1)
-          case _ => None
+          case (Some(scoreX), Some(scoreY)) if scoreX > scoreY => 1
+          case (Some(scoreX), Some(scoreY)) if scoreX < scoreY => -1
+          case _                                               => 0
         }
     }
 
   def fromScoreBallots(candidates: Set[Candidate], ballots: Set[ScoreBallot]): PreferenceMatrix = {
-    val tally = mutable.Map.empty[(Candidate, Candidate), Rational]
-    for(
-      x <- candidates;
-      y <- candidates if x != y
-    ) {
-      tally += ((x,y) -> 0)
-    }
+    val tally = mutable.Map.empty[(Candidate, Candidate), Rational].withDefault(_ => 0)
 
     // TODO: Allow this to be changed
-    val preferenceCalc: (Option[Rational], Option[Rational]) => Option[Rational] =
+    val preferenceCalc: (Option[Rational], Option[Rational]) => Rational =
       normalizedScoresToPreferenceUsingDifference
 
     ballots.foreach(ballot => {
       candidates.foreach(x => {candidates.foreach(y => {
         if(x != y) {
-          preferenceCalc(ballot.normalizedScores.get(x), ballot.normalizedScores.get(y)).foreach(tally(x,y) += _)
+          tally(x,y) += preferenceCalc(ballot.normalizedScores.get(x), ballot.normalizedScores.get(y))
         }
       })})
     })
