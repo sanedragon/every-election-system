@@ -12,11 +12,11 @@ class PreferenceMatrixSpec extends BaseSpec {
     preferenceMatrix.pairwisePreferences((alice, bob)) should be (1)
     preferenceMatrix.pairwisePreferences((alice, carol)) should be (1)
     preferenceMatrix.pairwisePreferences((bob, carol)) should be (1)
-    preferenceMatrix.pairwisePreferences((carol, alice)) should be (-1)
-    preferenceMatrix.pairwisePreferences((carol, bob)) should be (-1)
-    preferenceMatrix.pairwisePreferences((bob, alice)) should be (-1)
+    preferenceMatrix.pairwisePreferences((carol, alice)) should be (0)
+    preferenceMatrix.pairwisePreferences((carol, bob)) should be (0)
+    preferenceMatrix.pairwisePreferences((bob, alice)) should be (0)
 
-    preferenceMatrix.positivePreferences.toSet should be (Set(
+    preferenceMatrix.directionalPreferences.toSet should be (Set(
         Preference(alice, bob, 1),
         Preference(alice, carol, 1),
         Preference(bob, carol, 1)
@@ -36,12 +36,12 @@ class PreferenceMatrixSpec extends BaseSpec {
 
     val preferenceMatrix = PreferenceMatrix.fromRankedBallots(candidates, ballots)
 
-    preferenceMatrix.pairwisePreferences((alice, bob)) should be (2)
+    preferenceMatrix.pairwisePreferences((alice, bob)) should be (3)
     preferenceMatrix.pairwisePreferences((alice, carol)) should be (4)
-    preferenceMatrix.pairwisePreferences((bob, carol)) should be (0)
-    preferenceMatrix.pairwisePreferences((carol, alice)) should be (-4)
-    preferenceMatrix.pairwisePreferences((carol, bob)) should be (0)
-    preferenceMatrix.pairwisePreferences((bob, alice)) should be (-2)
+    preferenceMatrix.pairwisePreferences((bob, carol)) should be (2)
+    preferenceMatrix.pairwisePreferences((carol, alice)) should be (0)
+    preferenceMatrix.pairwisePreferences((carol, bob)) should be (2)
+    preferenceMatrix.pairwisePreferences((bob, alice)) should be (1)
 
     preferenceMatrix.preferencesLargestFirst.toList should be (List(
         Preference(alice, carol, 4),
@@ -59,8 +59,8 @@ class PreferenceMatrixSpec extends BaseSpec {
 
     val preferenceMatrix = PreferenceMatrix.fromScoreBallots(candidates, ballots)
 
-    preferenceMatrix.pairwisePreferences((alice, bob)) should be (-1)
-    preferenceMatrix.pairwisePreferences((alice, carol)) should be (-1)
+    preferenceMatrix.pairwisePreferences((alice, bob)) should be (0)
+    preferenceMatrix.pairwisePreferences((alice, carol)) should be (0)
     preferenceMatrix.pairwisePreferences((alice, david)) should be (0)
     preferenceMatrix.pairwisePreferences((bob, alice)) should be (1)
     preferenceMatrix.pairwisePreferences((bob, carol)) should be (0)
@@ -72,7 +72,7 @@ class PreferenceMatrixSpec extends BaseSpec {
     preferenceMatrix.pairwisePreferences((david, bob)) should be (0)
     preferenceMatrix.pairwisePreferences((david, carol)) should be (0)
 
-    preferenceMatrix.positivePreferences.toSet should be (Set(
+    preferenceMatrix.directionalPreferences.toSet should be (Set(
       Preference(bob, alice, 1),
       Preference(carol, alice, 1)
     ))
@@ -89,18 +89,18 @@ class PreferenceMatrixSpec extends BaseSpec {
 
     val preferenceMatrix = PreferenceMatrix.fromScoreBallots(candidates, ballots)
 
-    preferenceMatrix.pairwisePreferences((alice, bob)) should be (-1 + -0.1)
-    preferenceMatrix.pairwisePreferences((alice, carol)) should be (-1 + -0.9)
-    preferenceMatrix.pairwisePreferences((alice, david)) should be (0 + -0.4)
+    preferenceMatrix.pairwisePreferences((alice, bob)) should be (0)
+    preferenceMatrix.pairwisePreferences((alice, carol)) should be (0)
+    preferenceMatrix.pairwisePreferences((alice, david)) should be (0)
     preferenceMatrix.pairwisePreferences((bob, alice)) should be (1 + 0.1)
-    preferenceMatrix.pairwisePreferences((bob, carol)) should be (0 + -0.8)
-    preferenceMatrix.pairwisePreferences((bob, david)) should be (0 + -0.3)
+    preferenceMatrix.pairwisePreferences((bob, carol)) should be (0)
+    preferenceMatrix.pairwisePreferences((bob, david)) should be (0)
     preferenceMatrix.pairwisePreferences((carol, alice)) should be (1 + 0.9)
-    preferenceMatrix.pairwisePreferences((carol, bob)) should be (0 + 0.8)
-    preferenceMatrix.pairwisePreferences((carol, david)) should be (0 + 0.5)
-    preferenceMatrix.pairwisePreferences((david, alice)) should be (0 + 0.4)
-    preferenceMatrix.pairwisePreferences((david, bob)) should be (0 + 0.3)
-    preferenceMatrix.pairwisePreferences((david, carol)) should be (0 + -0.5)
+    preferenceMatrix.pairwisePreferences((carol, bob)) should be (0.8)
+    preferenceMatrix.pairwisePreferences((carol, david)) should be (0.5)
+    preferenceMatrix.pairwisePreferences((david, alice)) should be (0.4)
+    preferenceMatrix.pairwisePreferences((david, bob)) should be (0.3)
+    preferenceMatrix.pairwisePreferences((david, carol)) should be (0)
 
     preferenceMatrix.preferencesSmallestFirst.toList should be (List(
       Preference(david, bob, 0.3),
