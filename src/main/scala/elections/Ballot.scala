@@ -2,8 +2,6 @@ package elections
 
 import java.util.UUID
 
-import spire.math.Rational
-
 abstract class Ballot {
   final val id = UUID.randomUUID()
   val election: Election[_,_]
@@ -22,9 +20,9 @@ class ScoreBallot(
     scores.values.forall(score => score >= 0)
   }
 
-  lazy val normalizedScores: Map[Candidate, Rational] = {
-    val maxScore = scores.values.max
-    scores.mapValues(score => Rational(score, maxScore))
+  lazy val normalizedScores: Map[Candidate, Double] = {
+    val maxScore = scores.values.max.toDouble
+    scores.mapValues(score => score / maxScore)
   }
 }
 
@@ -57,6 +55,6 @@ class SingleVoteBallot(
   }
 }
 
-case class WeightedRankedBallot(originalBallot: RankedBallot, weight: Double, remainingCandidates: List[Candidate])
-case class WeightedScoreBallot(ballot: ScoreBallot, weight: Rational)
+case class WeightedRankedBallot(originalBallot: RankedBallot, weight: Double, remainingVote: List[Candidate])
+case class WeightedScoreBallot(ballot: ScoreBallot, weight: Double)
 

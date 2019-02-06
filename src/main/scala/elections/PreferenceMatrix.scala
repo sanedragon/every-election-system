@@ -1,7 +1,5 @@
 package elections
 
-import spire.math.Rational
-
 import scala.collection.mutable
 import scalax.collection.Graph
 import scalax.collection.edge._
@@ -79,7 +77,7 @@ object PreferenceMatrix {
     }).withDefaultValue(0))
   }
 
-  val normalizedScoresToPreferenceUsingDifference: (Option[Rational], Option[Rational]) => Rational =
+  val normalizedScoresToPreferenceUsingDifference: (Option[Double], Option[Double]) => Double =
     (xScore, yScore) => {
       (xScore, yScore) match {
           case (Some(scoreX), Some(scoreY)) if scoreX > scoreY => scoreX - scoreY
@@ -87,7 +85,7 @@ object PreferenceMatrix {
         }
     }
 
-  val normalizedScoresToPreferenceIntegral: (Option[Rational], Option[Rational]) => Rational =
+  val normalizedScoresToPreferenceIntegral: (Option[Double], Option[Double]) => Double =
     (xScore, yScore) => {
       (xScore, yScore) match {
           case (Some(scoreX), Some(scoreY)) if scoreX > scoreY => 1
@@ -98,10 +96,10 @@ object PreferenceMatrix {
 
 
   def fromScoreBallots(candidates: Set[Candidate], ballots: Set[ScoreBallot]): PreferenceMatrix = {
-    val tally = mutable.Map.empty[(Candidate, Candidate), Rational].withDefaultValue(0)
+    val tally = mutable.Map.empty[(Candidate, Candidate), Double].withDefaultValue(0)
 
     // TODO: Allow this to be changed
-    val preferenceCalc: (Option[Rational], Option[Rational]) => Rational =
+    val preferenceCalc: (Option[Double], Option[Double]) => Double =
       normalizedScoresToPreferenceUsingDifference
 
     ballots.foreach(ballot => {
@@ -114,7 +112,7 @@ object PreferenceMatrix {
 
 
     new PreferenceMatrix(candidates, tally.toMap.map(_ match {
-      case (candidatePair: (Candidate, Candidate), strength: Rational) => candidatePair -> strength.toDouble
+      case (candidatePair: (Candidate, Candidate), strength: Double) => candidatePair -> strength.toDouble
     }).withDefaultValue(0))
   }
 

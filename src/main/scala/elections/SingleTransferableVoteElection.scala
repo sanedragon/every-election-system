@@ -11,12 +11,25 @@ object SingleTransferableVoteElection {
   val HareQuota: (Int, Int) => Int = (numBallots, numCandidates) => (numBallots.toDouble / numCandidates).ceil.toInt
 }
 
-class SingleTransferableVoteElection(val candidates: Set[Candidate], val numPositions: Int, val quota: (Int, Int) => Int) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
+class SingleTransferableVoteElection(
+                                      val candidates: Set[Candidate],
+                                      val numPositions: Int,
+                                      val quota: (Int, Int) => Int
+                                    ) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
 
   def countBallots(ballots: Set[RankedBallot]): SingleTransferableVoteElectionResult = {
     val votesToGetElected = quota(ballots.size, numPositions)
 
-    new SingleTransferableVoteElectionResult(recurseRound(ballots.map(b => WeightedRankedBallot(b,1.0,b.ranking)), votesToGetElected, numPositions, candidates))
+    val initialWeightedBallots = ballots.map(b => WeightedRankedBallot(b,1,b.ranking))
+
+    new SingleTransferableVoteElectionResult(
+      recurseRound(
+        initialWeightedBallots,
+        votesToGetElected,
+        numPositions,
+        candidates
+      )
+    )
   }
 
   def recurseRound(
@@ -31,7 +44,7 @@ class SingleTransferableVoteElection(val candidates: Set[Candidate], val numPosi
       val zeroTally = remainingCandidates.map(c => c -> 0.0).toMap
       val firstPlaceVoteCountByCandidate: Map[Candidate, Double] =
         ballots.foldLeft(zeroTally)((tally, ballot) => {
-          val candidateVotedFor = ballot.remainingCandidates.head
+          val candidateVotedFor = ballot.remainingVote.head
           tally.updated(candidateVotedFor, tally(candidateVotedFor) + ballot.weight)
         })
 
@@ -64,18 +77,19 @@ class SingleTransferableVoteElection(val candidates: Set[Candidate], val numPosi
 
       if (excludedCandidates.nonEmpty) {
 
-        val winnerQuotaFactors: Map[Candidate, Double] = firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
-          val (candidate, count) = p
-          if (winners.contains(candidate)) {
-            factors.updated(candidate, (count - quota) / count)
-          } else factors
-        })
+        val winnerQuotaFactors: Map[Candidate, Double] =
+            firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
+              val (candidate, count) = p
+              if (winners.contains(candidate)) {
+                factors.updated(candidate, (count - quota) / count)
+              } else factors
+          })
 
         val newWeightedBallots: Set[WeightedRankedBallot] = ballots.map(b => {
           WeightedRankedBallot(
             b.originalBallot,
-            winnerQuotaFactors.getOrElse(b.remainingCandidates.head, 1.0) * b.weight,
-            b.remainingCandidates.filterNot(excludedCandidates.contains)
+            winnerQuotaFactors.getOrElse(b.remainingVote.head, 1.0) * b.weight,
+            b.remainingVote.filterNot(excludedCandidates.contains)
           )
         })
 
