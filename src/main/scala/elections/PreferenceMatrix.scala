@@ -40,6 +40,13 @@ class PreferenceMatrix(val candidates: Set[Candidate], val pairwisePreferences: 
   lazy val summedPreferenceGraph = Graph.from(candidates, directionalPreferences)
 
   lazy val schwartzSet = PreferenceMatrix.calculateSchwartzSet(graph)
+
+  lazy val description = {
+    pairwisePreferences.seq.toList.sortBy(-1 * _._2).map((tuple) => {
+      val ((x, y), numVoters) = tuple
+      numVoters.toString + " prefer " + x.name + " over " + y.name
+    }).mkString("\n")
+  }
 }
 
 
