@@ -1,6 +1,6 @@
 package elections
 
-import elections.SingleTransferableVoteElection.DroopQuota
+import elections.SingleTransferableVoteElection._
 
 class SingleTransferableVoteElectionSpec extends BaseSpec {
   "A SingleTransferableVoteElection" should "count correctly for a trivial case" in {
@@ -93,5 +93,108 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.size should be (2)
 
     result.winners should be (Set(alice, bob))
+  }
+
+  it should "count correctly for a another similar case" in {
+    val candidates = Set(alice, bob, carol, david)
+
+    val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota)
+
+    // 10 total ballots, 2 positions. Droop Quota is floor(10/(2 + 1)) + 1 = 4
+    val ballots = (
+      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
+        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
+        (1 to 4).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      ).toSet
+
+    val result = election.countBallots(ballots)
+
+    result.rounds.head.firstPlaceVotes should be (Map(alice -> 4.0, bob -> 2.0, carol -> 4.0, david -> 0.0))
+
+    // In the first round, both Alice and Carol have met the quota with 4 first place votes.
+    result.rounds.head.winners should be (Set(alice, carol))
+
+    // No losers because there are winners.
+    result.rounds.head.losers should be (Set.empty)
+
+    // That's all!
+    result.rounds.size should be (1)
+
+    result.winners should be (Set(alice, carol))
+  }
+
+  it should "count correctly using the Hare quota" in {
+    val candidates = Set(alice, bob, carol, david)
+
+    val election = new SingleTransferableVoteElection(candidates, 2, HareQuota)
+
+    // 9 total ballots, 2 positions. Hare Quota is 9/2 = 4.5
+    val ballots = (
+      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
+        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
+        (1 to 3).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      ).toSet
+
+    val result = election.countBallots(ballots)
+
+    result.rounds.head.firstPlaceVotes should be (Map(alice -> 4.0, bob -> 2.0, carol -> 3.0, david -> 0.0))
+
+    // In the first round, nobody has reached the quota.
+    result.rounds.head.winners should be (Set.empty)
+
+    // David loses with no first place votes.
+    result.rounds.head.losers should be (Set(david))
+
+    // In the second round, nobody has met the quota.
+    result.rounds(1).firstPlaceVotes should be (Map(alice -> 4.0, bob -> 2.0, carol -> 3.0))
+    result.rounds(1).winners should be (Set.empty)
+    // Bob has the lowest first-place vote count (2) and is eliminated
+    result.rounds(1).losers should be (Set(bob))
+
+    // Eliminating Bob gave Carol 2 votes, so she has 5 now.
+    result.rounds(2).firstPlaceVotes should be (Map(alice -> 4.0, carol -> 5.0))
+    result.rounds(2).winners should be (Set(carol))
+
+    // The remaining half-vote after Carol is elected goes to Alice, the last remaining candidate.
+    result.rounds(3).firstPlaceVotes should be (Map(alice -> 4.5))
+    result.rounds(3).winners should be (Set(alice))
+
+    result.rounds.size should be (4)
+
+    result.winners should be (Set(alice, carol))
+  }
+
+  it should "handle a tie" in {
+    val candidates = Set(alice, bob, carol, david)
+
+    val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota)
+
+    // 12 total ballots, 2 positions. Droop Quota is floor(12/3) + 1 = 5
+    val ballots = (
+      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
+        (1 to 4).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
+        (1 to 4).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      ).toSet
+
+    val result = election.countBallots(ballots)
+
+    result.rounds.head.firstPlaceVotes should be (Map(alice -> 4.0, bob -> 4.0, carol -> 4.0, david -> 0.0))
+
+    // In the first round, nobody has reached the quota.
+    result.rounds.head.winners should be (Set.empty)
+
+    // David loses with no first place votes.
+    result.rounds.head.losers should be (Set(david))
+
+    // In the second round, nobody has met the quota.
+    result.rounds(1).firstPlaceVotes should be (Map(alice -> 4.0, bob -> 4.0, carol -> 4.0))
+    result.rounds(1).winners should be (Set.empty)
+    // all three candidates tied, so they all lost
+    result.rounds(1).losers should be (Set(alice, bob, carol))
+
+    result.rounds.size should be (2)
+
+    // Nobody wins
+    result.winners should be (Set.empty)
   }
 }

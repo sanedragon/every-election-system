@@ -7,14 +7,19 @@ class SingleTransferableVoteElectionResult(val rounds: List[STVRoundResult]) ext
 case class STVRoundResult(val firstPlaceVotes: Map[Candidate, Double], val winners: Set[Candidate], val losers: Set[Candidate])
 
 object SingleTransferableVoteElection {
-  val DroopQuota: (Int, Int) => Int = (numBallots, numCandidates) => (numBallots / (numCandidates + 1)) + 1
-  val HareQuota: (Int, Int) => Int = (numBallots, numCandidates) => (numBallots.toDouble / numCandidates).ceil.toInt
+  // Droop Quota is more commonly used, and can be thought of as the smallest number of ballots a candidate can be on
+  // where they have a mandate.
+  val DroopQuota: (Int, Int) => Double = (numBallots, numCandidates) => ((numBallots / (numCandidates + 1)) + 1).toDouble
+
+  // The Hare Quota can be thought of as the largest number of ballots before you have to select that candidate.
+  // Using the Hare Quota tends toward under-representing larger groups.
+  val HareQuota: (Int, Int) => Double = (numBallots, numCandidates) => numBallots.toDouble / numCandidates
 }
 
 class SingleTransferableVoteElection(
                                       val candidates: Set[Candidate],
                                       val numPositions: Int,
-                                      val quota: (Int, Int) => Int
+                                      val quota: (Int, Int) => Double
                                     ) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
 
   def countBallots(ballots: Set[RankedBallot]): SingleTransferableVoteElectionResult = {
@@ -34,7 +39,7 @@ class SingleTransferableVoteElection(
 
   def recurseRound(
                     ballots: Set[WeightedRankedBallot],
-                    quota: Int,
+                    quota: Double,
                     numPositionsRemaining: Int,
                     remainingCandidates: Set[Candidate]
                   ): List[STVRoundResult] = {
@@ -75,8 +80,9 @@ class SingleTransferableVoteElection(
 
       val excludedCandidates = winners ++ losers
 
-      if (excludedCandidates.nonEmpty) {
-
+      if (excludedCandidates == remainingCandidates) {
+        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers) :: Nil
+      } else if (excludedCandidates.nonEmpty) {
         val winnerQuotaFactors: Map[Candidate, Double] =
             firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
               val (candidate, count) = p
