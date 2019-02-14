@@ -9,19 +9,42 @@ class RRVElectionRoundResult(val roundResults: Map[Candidate, Double]) {
   lazy val winner: Candidate = roundResults.maxBy(_._2)._1
 }
 
+object ReweightedRankedVotingElection {
 
-class ReweightedRankedVotingElection(val candidates: Set[Candidate], val numPositions: Int) extends Election[ScoreBallot, RRVElectionResult] {
+  // No vote for a candidate is the same as marking them 0
+  val sumScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore
+
+  // No vote for a candidate does not affect their score, but a candidate could get elected with a tiny fraction of the vote
+  val averageScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore / sumWeight
+
+  // Compromise. Scoring a candidate zero negatively affects them more than not voting for them at all
+  val rootWeightScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore / math.sqrt(sumWeight)
+
+  val defaultScoreAggregation = sumScoreAggregation
+  val defaultWeightConstant: Double = 1.0
+}
+
+
+class ReweightedRankedVotingElection(
+                                      val candidates: Set[Candidate],
+                                      val numPositions: Int,
+                                      scoreAggregation: (Double, Double) => Double = ReweightedRankedVotingElection.defaultScoreAggregation,
+                                      weightConstant: Double = ReweightedRankedVotingElection.defaultWeightConstant
+                                    ) extends Election[ScoreBallot, RRVElectionResult] {
+
   def countBallots(ballots: Set[ScoreBallot]): RRVElectionResult = {
-    new RRVElectionResult(recurseRound(ballots, Set.empty, numPositions))
+    val initialWeightedBallots = ballots.map(b => new WeightedScoreBallot(b, 1.0))
+    new RRVElectionResult(recurseRound(initialWeightedBallots, Set.empty, numPositions))
   }
 
-  def recurseRound(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate], numPositionsLeft: Int): List[RRVElectionRoundResult] = {
+  def recurseRound(ballots: Set[WeightedScoreBallot], electedCandidates: Set[Candidate], numPositionsLeft: Int): List[RRVElectionRoundResult] = {
     val candidatesNotYetElected = candidates -- electedCandidates
     if (numPositionsLeft == 0 || candidatesNotYetElected.isEmpty) Nil
     else {
-      val weightedBallots = weightBallots(ballots, electedCandidates)
-      val roundResult = calculateRoundResult(weightedBallots, candidatesNotYetElected)
-      roundResult :: recurseRound(ballots, electedCandidates + roundResult.winner, numPositionsLeft - 1)
+      val roundResult = calculateRoundResult(ballots, candidatesNotYetElected)
+      val newElectedCandidates = electedCandidates + roundResult.winner
+      val reweightedBallots = weightBallots(ballots.map(_.ballot), newElectedCandidates)
+      roundResult :: recurseRound(reweightedBallots, newElectedCandidates, numPositionsLeft - 1)
     }
   }
 
@@ -30,16 +53,13 @@ class ReweightedRankedVotingElection(val candidates: Set[Candidate], val numPosi
       val (totalScore: Double, totalWeight: Double) = ballots.foldLeft(0.0, 0.0)((tally, wb) => {
         val (tallyScore, tallyWeight) = tally
         wb.ballot.normalizedScores.get(candidate).map(ballotScore =>
-          (tallyScore + ballotScore, tallyWeight + wb.weight)
+          (tallyScore + (wb.weight * ballotScore), tallyWeight + wb.weight)
         ).getOrElse( (tallyScore, tallyWeight) )
       })
-      val averageScore = totalScore / totalWeight
-      m + (candidate -> averageScore)
+      m + (candidate -> scoreAggregation(totalScore, totalWeight))
     })
     new RRVElectionRoundResult(roundResults)
   }
-
-  val weightConstant: Double = 1
 
   def weightBallots(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate]): Set[WeightedScoreBallot] = {
     ballots.map(b => {
