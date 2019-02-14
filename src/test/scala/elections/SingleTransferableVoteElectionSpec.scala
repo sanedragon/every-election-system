@@ -14,7 +14,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set(alice))
     result.rounds.head.losers should be (Set.empty)
     result.rounds.head.firstPlaceVotes(alice) should be (1)
-    result.rounds.head.firstPlaceVotes.get(bob) should be (None)
+    result.rounds.head.firstPlaceVotes(bob) should be (0)
   }
 
   it should "count correctly for a slightly less trivial case" in {
