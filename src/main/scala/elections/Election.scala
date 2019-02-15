@@ -2,7 +2,7 @@ package elections
 
 class ElectionResult
 
-case class Candidate(name: String) {
+case class Candidate(name: String, diversityCategories: Set[String] = Set.empty) {
   override val toString = name
 }
 

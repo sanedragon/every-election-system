@@ -4,7 +4,7 @@ class RRVElectionResult(val rounds: List[RRVElectionRoundResult]) extends Electi
   lazy val winners = rounds.map(_.winner)
 }
 
-class RRVElectionRoundResult(val roundResults: Map[Candidate, Double]) {
+class RRVElectionRoundResult(val roundResults: Map[Candidate, Double], val excludedCandidates: Set[Candidate]) {
   // FIXME: handle ties
   lazy val winner: Candidate = roundResults.maxBy(_._2)._1
 }
@@ -29,7 +29,8 @@ class ReweightedRankedVotingElection(
                                       val candidates: Set[Candidate],
                                       val numPositions: Int,
                                       scoreAggregation: (Double, Double) => Double = ReweightedRankedVotingElection.defaultScoreAggregation,
-                                      weightConstant: Double = ReweightedRankedVotingElection.defaultWeightConstant
+                                      weightConstant: Double = ReweightedRankedVotingElection.defaultWeightConstant,
+                                      val diversityRequirements: DiversityRequirements = DiversityRequirements.none
                                     ) extends Election[ScoreBallot, RRVElectionResult] {
 
   def countBallots(ballots: Set[ScoreBallot]): RRVElectionResult = {
@@ -38,29 +39,34 @@ class ReweightedRankedVotingElection(
   }
 
   def recurseRound(ballots: Set[WeightedScoreBallot], electedCandidates: Set[Candidate], numPositionsLeft: Int): List[RRVElectionRoundResult] = {
-    val candidatesNotYetElected = candidates -- electedCandidates
-    if (numPositionsLeft == 0 || candidatesNotYetElected.isEmpty) Nil
+    val diversityExcludedCandidates =
+      diversityRequirements.excludedCandidates(
+        numPositionsLeft,
+        electedCandidates,
+        candidates -- electedCandidates
+      )
+
+    val remainingCandidates = candidates -- electedCandidates -- diversityExcludedCandidates
+    if (numPositionsLeft == 0 || remainingCandidates.isEmpty) Nil
     else {
-      val roundResult = calculateRoundResult(ballots, candidatesNotYetElected)
+      val roundResults = remainingCandidates.foldLeft(Map.empty[Candidate, Double])((m, candidate) => {
+        val (totalScore: Double, totalWeight: Double) = ballots.foldLeft(0.0, 0.0)((tally, wb) => {
+          val (tallyScore, tallyWeight) = tally
+          wb.ballot.normalizedScores.get(candidate).map(ballotScore =>
+            (tallyScore + (wb.weight * ballotScore), tallyWeight + wb.weight)
+          ).getOrElse( (tallyScore, tallyWeight) )
+        })
+        m + (candidate -> scoreAggregation(totalScore, totalWeight))
+      })
+
+      val roundResult = new RRVElectionRoundResult(roundResults, diversityExcludedCandidates)
+
       val newElectedCandidates = electedCandidates + roundResult.winner
       val reweightedBallots = weightBallots(ballots.map(_.ballot), newElectedCandidates)
+
       roundResult :: recurseRound(reweightedBallots, newElectedCandidates, numPositionsLeft - 1)
     }
   }
-
-  def calculateRoundResult(ballots: Set[WeightedScoreBallot], candidates: Set[Candidate]): RRVElectionRoundResult = {
-    val roundResults = candidates.foldLeft(Map.empty[Candidate, Double])((m, candidate) => {
-      val (totalScore: Double, totalWeight: Double) = ballots.foldLeft(0.0, 0.0)((tally, wb) => {
-        val (tallyScore, tallyWeight) = tally
-        wb.ballot.normalizedScores.get(candidate).map(ballotScore =>
-          (tallyScore + (wb.weight * ballotScore), tallyWeight + wb.weight)
-        ).getOrElse( (tallyScore, tallyWeight) )
-      })
-      m + (candidate -> scoreAggregation(totalScore, totalWeight))
-    })
-    new RRVElectionRoundResult(roundResults)
-  }
-
   def weightBallots(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate]): Set[WeightedScoreBallot] = {
     ballots.map(b => {
       val sumOfScoresOfWinners = electedCandidates.foldLeft(0.0)((sum, c) => sum + b.normalizedScores.getOrElse(c,0.0))

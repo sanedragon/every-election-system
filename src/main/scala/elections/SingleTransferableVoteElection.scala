@@ -4,7 +4,7 @@ class SingleTransferableVoteElectionResult(val rounds: List[STVRoundResult]) ext
   lazy val winners: Set[Candidate] = rounds.flatMap(r => r.winners).toSet
 }
 
-case class STVRoundResult(val firstPlaceVotes: Map[Candidate, Double], val winners: Set[Candidate], val losers: Set[Candidate])
+case class STVRoundResult(val firstPlaceVotes: Map[Candidate, Double], val winners: Set[Candidate], val losers: Set[Candidate], val diversityExcludedCandidates: Set[Candidate])
 
 object SingleTransferableVoteElection {
   // Droop Quota is more commonly used, and can be thought of as the smallest number of ballots a candidate can be on
@@ -19,7 +19,8 @@ object SingleTransferableVoteElection {
 class SingleTransferableVoteElection(
                                       val candidates: Set[Candidate],
                                       val numPositions: Int,
-                                      val quota: (Int, Int) => Double
+                                      val quota: (Int, Int) => Double = SingleTransferableVoteElection.DroopQuota,
+                                      val diversityRequirements: DiversityRequirements = DiversityRequirements.none
                                     ) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
 
   def countBallots(ballots: Set[RankedBallot]): SingleTransferableVoteElectionResult = {
@@ -46,14 +47,15 @@ class SingleTransferableVoteElection(
     if (numPositionsRemaining == 0 || ballots.isEmpty)
       Nil
     else {
-      val zeroTally = remainingCandidates.map(c => c -> 0.0).toMap
+      val diversityExcludedCandidates = diversityRequirements.excludedCandidates(numPositionsRemaining, candidates, remainingCandidates)
+      val validCandidates = remainingCandidates -- diversityExcludedCandidates
+      val zeroTally = validCandidates.map(c => c -> 0.0).toMap
       val firstPlaceVoteCountByCandidate: Map[Candidate, Double] =
         ballots.foldLeft(zeroTally)((tally, ballot) => {
           val candidateVotedFor = ballot.remainingVote.head
           tally.updated(candidateVotedFor, tally(candidateVotedFor) + ballot.weight)
         })
 
-      // TODO: Check diversity quotas here. Will also require the already elected candidates passed through recursion.
       val winners: Set[Candidate] = firstPlaceVoteCountByCandidate.foldLeft(Set.empty[Candidate])((winners, p) => {
         val (candidate, count) = p
         if (count >= quota) {
@@ -78,11 +80,11 @@ class SingleTransferableVoteElection(
         })
       } else Set.empty
 
-      val excludedCandidates = winners ++ losers
+      val eliminatedCandidates = winners ++ losers
 
-      if (excludedCandidates == remainingCandidates) {
-        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers) :: Nil
-      } else if (excludedCandidates.nonEmpty) {
+      if (eliminatedCandidates == validCandidates) {
+        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) :: Nil
+      } else if (eliminatedCandidates.nonEmpty) {
         val winnerQuotaFactors: Map[Candidate, Double] =
             firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
               val (candidate, count) = p
@@ -95,11 +97,17 @@ class SingleTransferableVoteElection(
           WeightedRankedBallot(
             b.originalBallot,
             winnerQuotaFactors.getOrElse(b.remainingVote.head, 1.0) * b.weight,
-            b.remainingVote.filterNot(excludedCandidates.contains)
+            b.remainingVote.filterNot(eliminatedCandidates.contains)
           )
         })
 
-        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers) :: recurseRound(newWeightedBallots, quota, numPositionsRemaining - winners.size, remainingCandidates -- excludedCandidates)
+        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) ::
+          recurseRound(
+            newWeightedBallots,
+            quota,
+            numPositionsRemaining - winners.size,
+            validCandidates -- eliminatedCandidates
+          )
       } else {
         Nil
       }
