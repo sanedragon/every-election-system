@@ -1,10 +1,15 @@
 package elections
 
-class SingleTransferableVoteElectionResult(val rounds: List[STVRoundResult]) extends ElectionResult {
-  lazy val winners: Set[Candidate] = rounds.flatMap(r => r.winners).toSet
+class SingleTransferableVoteElectionResult(val rounds: Seq[STVRoundResult]) extends ElectionResult {
+  lazy val winners: Seq[Candidate] = rounds.flatMap(r => r.winners)
 }
 
-case class STVRoundResult(val firstPlaceVotes: Map[Candidate, Double], val winners: Set[Candidate], val losers: Set[Candidate], val diversityExcludedCandidates: Set[Candidate])
+case class STVRoundResult(
+                           firstPlaceVotes: Map[Candidate, Double],
+                           winners: Set[Candidate],
+                           losers: Set[Candidate],
+                           diversityExcluded: Set[Candidate]
+                         )
 
 object SingleTransferableVoteElection {
   // Droop Quota is more commonly used, and can be thought of as the smallest number of ballots a candidate can be on

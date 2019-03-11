@@ -4,13 +4,13 @@ object DiversityRequirements {
   val none = new DiversityRequirements(Map.empty, Map.empty)
 }
 
-class DiversityRequirements(
+case class DiversityRequirements(
                              minimums: Map[String, Int],
                              maximums: Map[String, Int]
                            ) {
   // at least 5 must be racial or national minorities
   // no more than 8 may be men
-  val categories = minimums.keySet ++ maximums.keySet
+  val categories: Set[String] = minimums.keySet ++ maximums.keySet
 
   def excludedCandidates(
                           numRemainingPositions: Int,

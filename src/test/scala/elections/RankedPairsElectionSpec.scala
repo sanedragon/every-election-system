@@ -6,7 +6,7 @@ class RankedPairsElectionSpec extends BaseSpec {
 
     val election = new RankedBallotRankedPairsElection(candidates)
 
-    val ballots = Set(new RankedBallot(election, List(alice, bob)))
+    val ballots = Set(new RankedBallot(List(alice, bob)))
 
     val result = election.countBallots(ballots)
 
@@ -23,9 +23,9 @@ class RankedPairsElectionSpec extends BaseSpec {
     val election = new RankedBallotRankedPairsElection(candidates)
 
     val ballots = (
-        (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol))) ++
-        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice))) ++
-        (1 to 3).map(_ => new RankedBallot(election, List(carol, alice, bob)))
+        (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol))) ++
+        (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice))) ++
+        (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob)))
       ).toSet
 
     val result = election.countBallots(ballots)
@@ -51,7 +51,7 @@ class RankedPairsElectionSpec extends BaseSpec {
 
     val election = new ScoreBallotRankedPairsElection(candidates)
 
-    val ballots = Set(new ScoreBallot(election, Map(alice -> 1, bob -> 0)))
+    val ballots = Set(new ScoreBallot(Map(alice -> 1, bob -> 0)))
 
     val result = election.countBallots(ballots)
 
@@ -68,9 +68,9 @@ class RankedPairsElectionSpec extends BaseSpec {
     val election = new ScoreBallotRankedPairsElection(candidates)
 
     val ballots = Set(
-        new ScoreBallot(election, Map(alice -> 10, bob -> 0)),
-        new ScoreBallot(election, Map(alice -> 6, bob -> 10, carol -> 0)),
-        new ScoreBallot(election, Map(alice -> 0, carol -> 10))
+        new ScoreBallot(Map(alice -> 10, bob -> 0)),
+        new ScoreBallot(Map(alice -> 6, bob -> 10, carol -> 0)),
+        new ScoreBallot(Map(alice -> 0, carol -> 10))
       )
 
     val result = election.countBallots(ballots)

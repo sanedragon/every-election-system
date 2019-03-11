@@ -1,47 +1,47 @@
 package elections
 import org.scalactic.TolerantNumerics
 
-class ReweightedRankedVotingElectionSpec extends BaseSpec {
+class ReweightedRangeVoteElectionSpec extends BaseSpec {
   implicit val closeEnough = TolerantNumerics.tolerantDoubleEquality(0.00000001)
 
   "A ReweightedRankedVotingElection" should "count correctly for a trivial case" in {
     val candidates = Set(alice, bob)
 
-    val election = new ReweightedRankedVotingElection(candidates, 1)
+    val election = new ReweightedRangeVoteElection(candidates, 1)
 
-    val ballots = Set(new ScoreBallot(election, Map(alice -> 1, bob -> 0)))
+    val ballots = Set(new ScoreBallot(Map(alice -> 1, bob -> 0)))
 
     val result = election.countBallots(ballots)
 
     result.winners should be (List(alice))
-    result.rounds.head.roundResults should be (Map(alice -> 1, bob -> 0))
+    result.rounds.head.scores should be (Map(alice -> 1, bob -> 0))
   }
 
   it should "provide proportional representation in a simple case" in {
     val candidates = Set(alice, bob, carol, david)
 
-    val election = new ReweightedRankedVotingElection(candidates, 2)
+    val election = new ReweightedRangeVoteElection(candidates, 2)
 
     val ballots = (
-        (1 to 10).map(_ => new ScoreBallot(election, Map(alice -> 10, bob -> 0, carol -> 9, david -> 0))) ++
-        (1 to 12).map(_ => new ScoreBallot(election, Map(alice -> 0, bob -> 10, carol -> 0, david -> 9)))
+        (1 to 10).map(_ => new ScoreBallot(Map(alice -> 10, bob -> 0, carol -> 9, david -> 0))) ++
+        (1 to 12).map(_ => new ScoreBallot(Map(alice -> 0, bob -> 10, carol -> 0, david -> 9)))
       ).toSet
 
     val result = election.countBallots(ballots)
 
-    result.rounds.head.roundResults(alice) should equal (
+    result.rounds.head.scores(alice) should equal (
       (10 * 1.0) + (12 * 0.0)
     ) // 10
 
-    result.rounds.head.roundResults(bob) should equal (
+    result.rounds.head.scores(bob) should equal (
       (10 * 0.0) + (12 * 1.0)
     ) // 12
 
-    result.rounds.head.roundResults(carol) should equal (
+    result.rounds.head.scores(carol) should equal (
       (10 * 0.9) + (12 * 0.0)
     ) // 9
 
-    result.rounds.head.roundResults(david) should equal (
+    result.rounds.head.scores(david) should equal (
       (10 * 0.0) + (12 * 0.9)
     ) // 10.8 - in pure score, bob & david would win
 
@@ -49,15 +49,15 @@ class ReweightedRankedVotingElectionSpec extends BaseSpec {
 
     // in round 2, Bob's votes get weighted to 1 / (1 + 1) = 1/2
 
-    result.rounds(1).roundResults(alice) should equal (
+    result.rounds(1).scores(alice) should equal (
       (10 * 1.0) + ((12 * (1.0/2)) * 0.0)
     ) // 10
 
-    result.rounds(1).roundResults(carol) should equal (
+    result.rounds(1).scores(carol) should equal (
       (10 * 0.9) + ((12 * (1.0/2)) * 0.0)
     ) // 9
 
-    result.rounds(1).roundResults(david) should equal (
+    result.rounds(1).scores(david) should equal (
       (10 * 0.0) + ((12 * (1.0/2)) * 0.9)
     ) // 5.4
 

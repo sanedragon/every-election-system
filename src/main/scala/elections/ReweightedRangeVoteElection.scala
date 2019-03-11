@@ -1,15 +1,15 @@
 package elections
 
-class RRVElectionResult(val rounds: List[RRVElectionRoundResult]) extends ElectionResult {
+class RRVElectionResult(val rounds: Seq[RRVElectionRoundResult]) extends ElectionResult {
   lazy val winners = rounds.map(_.winner)
 }
 
-class RRVElectionRoundResult(val roundResults: Map[Candidate, Double], val excludedCandidates: Set[Candidate]) {
+case class RRVElectionRoundResult(scores: Map[Candidate, Double], diversityExcluded: Set[Candidate]) {
   // FIXME: handle ties
-  lazy val winner: Candidate = roundResults.maxBy(_._2)._1
+  lazy val winner: Candidate = scores.maxBy(_._2)._1
 }
 
-object ReweightedRankedVotingElection {
+object ReweightedRangeVoteElection {
 
   // No vote for a candidate is the same as marking them 0
   val sumScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore
@@ -25,12 +25,12 @@ object ReweightedRankedVotingElection {
 }
 
 
-class ReweightedRankedVotingElection(
-                                      val candidates: Set[Candidate],
-                                      val numPositions: Int,
-                                      scoreAggregation: (Double, Double) => Double = ReweightedRankedVotingElection.defaultScoreAggregation,
-                                      weightConstant: Double = ReweightedRankedVotingElection.defaultWeightConstant,
-                                      val diversityRequirements: DiversityRequirements = DiversityRequirements.none
+class ReweightedRangeVoteElection(
+                                   val candidates: Set[Candidate],
+                                   val numPositions: Int,
+                                   val scoreAggregation: (Double, Double) => Double = ReweightedRangeVoteElection.defaultScoreAggregation,
+                                   val weightConstant: Double = ReweightedRangeVoteElection.defaultWeightConstant,
+                                   val diversityRequirements: DiversityRequirements = DiversityRequirements.none
                                     ) extends Election[ScoreBallot, RRVElectionResult] {
 
   def countBallots(ballots: Set[ScoreBallot]): RRVElectionResult = {
@@ -59,7 +59,7 @@ class ReweightedRankedVotingElection(
         m + (candidate -> scoreAggregation(totalScore, totalWeight))
       })
 
-      val roundResult = new RRVElectionRoundResult(roundResults, diversityExcludedCandidates)
+      val roundResult = RRVElectionRoundResult(roundResults, diversityExcludedCandidates)
 
       val newElectedCandidates = electedCandidates + roundResult.winner
       val reweightedBallots = weightBallots(ballots.map(_.ballot), newElectedCandidates)

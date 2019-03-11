@@ -4,19 +4,15 @@ import java.util.UUID
 
 abstract class Ballot {
   final val id = UUID.randomUUID()
-  val election: Election[_,_]
-  def validate: Boolean
+  def validate(candidates: Set[Candidate]): Boolean
 
   final override def equals(other: Any) = other.isInstanceOf[Ballot] && other.asInstanceOf[Ballot].id == id
-  final override lazy val hashCode = election.hashCode() * 7 + id.hashCode()
+  final override lazy val hashCode = id.hashCode()
 }
 
-class ScoreBallot(
-                    val election: Election[_ <: ScoreBallot, _ <: ElectionResult],
-                    val scores: Map[Candidate, Int]
-                  ) extends Ballot {
-  def validate = {
-    scores.keySet.forall(candidate => election.candidates.contains(candidate)) &&
+class ScoreBallot( val scores: Map[Candidate, Int] ) extends Ballot {
+  def validate(candidates: Set[Candidate]): Boolean = {
+    scores.keySet.forall(candidate => candidates.contains(candidate)) &&
     scores.values.forall(score => score >= 0)
   }
 
@@ -26,35 +22,26 @@ class ScoreBallot(
   }
 }
 
-class RankedBallot(
-                     val election: Election[_ <: RankedBallot, _ <: ElectionResult],
-                     val ranking: List[Candidate]
-                   ) extends Ballot {
-  def validate = {
+class RankedBallot(val ranking: Seq[Candidate]) extends Ballot {
+  def validate(candidates: Set[Candidate]): Boolean = {
     ranking.toSet.size == ranking.size &&
       ranking.nonEmpty &&
-      ranking.forall(candidate => election.candidates.contains(candidate))
+      ranking.forall(candidate => candidates.contains(candidate))
   }
 }
 
-class ApprovalBallot(
-                       val election: Election[_ <: ApprovalBallot, _ <: ElectionResult],
-                       val approvals: Map[Candidate, Boolean]
-                    ) extends Ballot {
-  def validate = {
-    approvals.keySet.forall(candidate => election.candidates.contains(candidate))
+class ApprovalBallot( val approvals: Map[Candidate, Boolean] ) extends Ballot {
+  def validate(candidates: Set[Candidate]): Boolean = {
+    approvals.keySet.forall(candidate => candidates.contains(candidate))
   }
 }
 
-class SingleVoteBallot(
-                         val election: Election[_ <: SingleVoteBallot, _ <: ElectionResult],
-                         val vote: Candidate
-                       ) extends Ballot {
-  def validate = {
-    election.candidates.contains(vote)
+class SingleVoteBallot( val vote: Candidate ) extends Ballot {
+  def validate(candidates: Set[Candidate]): Boolean = {
+    candidates.contains(vote)
   }
 }
 
-case class WeightedRankedBallot(originalBallot: RankedBallot, weight: Double, remainingVote: List[Candidate])
+case class WeightedRankedBallot(originalBallot: RankedBallot, weight: Double, remainingVote: Seq[Candidate])
 case class WeightedScoreBallot(ballot: ScoreBallot, weight: Double)
 

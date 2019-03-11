@@ -6,7 +6,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
   "A SingleTransferableVoteElection" should "count correctly for a trivial case" in {
     val election = new SingleTransferableVoteElection(Set(alice, bob), 1, DroopQuota)
 
-    val ballots = Set(new RankedBallot(election, List(alice, bob)))
+    val ballots = Set(new RankedBallot(List(alice, bob)))
 
     val result = election.countBallots(ballots)
 
@@ -24,9 +24,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     // 9 total ballots, 2 positions. Droop Quota is 9/(2 + 1) + 1 = 4
     val ballots = (
-      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
-        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
-        (1 to 3).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
+        (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
+        (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
       ).toSet
 
     val result = election.countBallots(ballots)
@@ -68,9 +68,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     // 1 total ballots, 2 positions. Droop Quota is floor(11/(2 + 1)) + 1 = 4
     val ballots = (
-      (1 to 6).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
-        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
-        (1 to 3).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      (1 to 6).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
+        (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
+        (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
       ).toSet
 
     val result = election.countBallots(ballots)
@@ -102,9 +102,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     // 10 total ballots, 2 positions. Droop Quota is floor(10/(2 + 1)) + 1 = 4
     val ballots = (
-      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
-        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
-        (1 to 4).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
+        (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
+        (1 to 4).map(_ => new RankedBallot(List(carol, alice, bob, david)))
       ).toSet
 
     val result = election.countBallots(ballots)
@@ -130,9 +130,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     // 9 total ballots, 2 positions. Hare Quota is 9/2 = 4.5
     val ballots = (
-      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
-        (1 to 2).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
-        (1 to 3).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
+        (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
+        (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
       ).toSet
 
     val result = election.countBallots(ballots)
@@ -171,9 +171,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     // 12 total ballots, 2 positions. Droop Quota is floor(12/3) + 1 = 5
     val ballots = (
-      (1 to 4).map(_ => new RankedBallot(election, List(alice, bob, carol, david))) ++
-        (1 to 4).map(_ => new RankedBallot(election, List(bob, carol, alice, david))) ++
-        (1 to 4).map(_ => new RankedBallot(election, List(carol, alice, bob, david)))
+      (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
+        (1 to 4).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
+        (1 to 4).map(_ => new RankedBallot(List(carol, alice, bob, david)))
       ).toSet
 
     val result = election.countBallots(ballots)
