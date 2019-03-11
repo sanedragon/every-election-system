@@ -3,4 +3,5 @@
 lib/*
 project/target/*
 target/*
-.idea/workspace.xml
+.idea/*
+every-election-system.iml
