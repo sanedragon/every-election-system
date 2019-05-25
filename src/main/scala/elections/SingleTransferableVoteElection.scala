@@ -38,7 +38,8 @@ class SingleTransferableVoteElection(
         initialWeightedBallots,
         votesToGetElected,
         numPositions,
-        candidates
+        candidates,
+        Set.empty
       )
     )
   }
@@ -47,14 +48,13 @@ class SingleTransferableVoteElection(
                     ballots: Set[WeightedRankedBallot],
                     quota: Double,
                     numPositionsRemaining: Int,
-                    remainingCandidates: Set[Candidate]
+                    remainingCandidates: Set[Candidate],
+                    electedCandidates: Set[Candidate]
                   ): List[STVRoundResult] = {
     if (numPositionsRemaining == 0 || ballots.isEmpty)
       Nil
     else {
-      val diversityExcludedCandidates = diversityRequirements.excludedCandidates(numPositionsRemaining, candidates, remainingCandidates)
-      val validCandidates = remainingCandidates -- diversityExcludedCandidates
-      val zeroTally = validCandidates.map(c => c -> 0.0).toMap
+      val zeroTally = remainingCandidates.map(c => c -> 0.0).toMap
       val firstPlaceVoteCountByCandidate: Map[Candidate, Double] =
         ballots.foldLeft(zeroTally)((tally, ballot) => {
           val candidateVotedFor = ballot.remainingVote.head
@@ -85,9 +85,16 @@ class SingleTransferableVoteElection(
         })
       } else Set.empty
 
-      val eliminatedCandidates = winners ++ losers
+      val newElectedCandidates = electedCandidates ++ winners
 
-      if (eliminatedCandidates == validCandidates) {
+      val diversityExcludedCandidates = diversityRequirements.excludedCandidates(
+          numPositionsRemaining,
+          newElectedCandidates,
+          remainingCandidates -- winners -- losers)
+
+      val eliminatedCandidates = winners ++ losers ++ diversityExcludedCandidates
+
+      if (eliminatedCandidates == remainingCandidates) {
         new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) :: Nil
       } else if (eliminatedCandidates.nonEmpty) {
         val winnerQuotaFactors: Map[Candidate, Double] =
@@ -111,7 +118,8 @@ class SingleTransferableVoteElection(
             newWeightedBallots,
             quota,
             numPositionsRemaining - winners.size,
-            validCandidates -- eliminatedCandidates
+            remainingCandidates -- eliminatedCandidates,
+            newElectedCandidates
           )
       } else {
         Nil
