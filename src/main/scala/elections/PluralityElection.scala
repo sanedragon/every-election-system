@@ -5,7 +5,7 @@ class PluralityElectionResult(val numVotesByCandidate: Map[Candidate, Int]) exte
 }
 
 class PluralityElection(val candidates: Set[Candidate]) extends Election[SingleVoteBallot, PluralityElectionResult] {
-  def countBallots(ballots: Set[SingleVoteBallot]): PluralityElectionResult = {
+  def countBallots(ballots: Seq[SingleVoteBallot]): PluralityElectionResult = {
     val numVotesByCandidate: Map[Candidate, Int] = {
       ballots.foldLeft(Map.empty[Candidate, Int].withDefaultValue(0))(
         (tallySoFar: Map[Candidate, Int], ballot: SingleVoteBallot) => {

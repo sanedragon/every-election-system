@@ -9,7 +9,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
   "A SingleTransferableVoteElection" should "count correctly for a trivial case" in {
     val election = new SingleTransferableVoteElection(Set(alice, bob), 1, DroopQuota)
 
-    val ballots = Set(new RankedBallot(List(alice, bob)))
+    val ballots = Seq(new RankedBallot(List(alice, bob)))
 
     val result = election.countBallots(ballots)
 
@@ -26,11 +26,10 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota)
 
     // 9 total ballots, 2 positions. Droop Quota is 9/(2 + 1) + 1 = 4
-    val ballots = (
+    val ballots =
       (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
         (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
         (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 
@@ -70,11 +69,10 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota)
 
     // 1 total ballots, 2 positions. Droop Quota is floor(11/(2 + 1)) + 1 = 4
-    val ballots = (
+    val ballots =
       (1 to 6).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
         (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
         (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 
@@ -104,11 +102,10 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota)
 
     // 10 total ballots, 2 positions. Droop Quota is floor(10/(2 + 1)) + 1 = 4
-    val ballots = (
+    val ballots =
       (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
         (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
         (1 to 4).map(_ => new RankedBallot(List(carol, alice, bob, david)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 
@@ -132,11 +129,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     val election = new SingleTransferableVoteElection(candidates, 2, HareQuota)
 
     // 9 total ballots, 2 positions. Hare Quota is 9/2 = 4.5
-    val ballots = (
-      (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
+    val ballots = (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
         (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
         (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 
@@ -173,11 +168,10 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota)
 
     // 12 total ballots, 2 positions. Droop Quota is floor(12/3) + 1 = 5
-    val ballots = (
+    val ballots =
       (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
         (1 to 4).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
         (1 to 4).map(_ => new RankedBallot(List(carol, alice, bob, david)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 
@@ -213,11 +207,10 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     val election = new SingleTransferableVoteElection(candidates, 2, DroopQuota, diversityRequirements)
 
     // 1 total ballots, 2 positions. Droop Quota is floor(11/(2 + 1)) + 1 = 4
-    val ballots = (
+    val ballots =
       (1 to 6).map(_ => new RankedBallot(List(alex, adam, erin, emily))) ++
         (1 to 2).map(_ => new RankedBallot(List(adam, erin, alex, emily))) ++
         (1 to 3).map(_ => new RankedBallot(List(erin, alex, adam, emily)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 
@@ -234,7 +227,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     result.rounds(1).firstPlaceVotes(erin) should equal (3.0 + 2.0 + 6.0 * (1.0 / 3.0))
     result.rounds(1).firstPlaceVotes(emily) should equal (0.0)
-    // Bob has met the quota, with 2 first place votes plus 6 1/3-weighted votes from team Alice
+
     result.rounds(1).winners should be (Set(erin))
 
     result.rounds.size should be (2)

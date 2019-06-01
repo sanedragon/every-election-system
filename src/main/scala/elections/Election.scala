@@ -9,5 +9,5 @@ case class Candidate(name: String, diversityCategories: Set[String] = Set.empty)
 
 abstract class Election[BallotT<:Ballot, ElectionResultT<:ElectionResult] {
   val candidates: Set[Candidate]
-  def countBallots(ballots: Set[BallotT]): ElectionResultT
+  def countBallots(ballots: Seq[BallotT]): ElectionResultT
 }

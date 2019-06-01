@@ -4,7 +4,7 @@ class SchulzeElectionSpec extends BaseSpec {
   "A RankedSchulzeElection" should "count correctly for a trivial case" in {
     val election = new RankedSchulzeElection(Set(alice, bob))
 
-    val ballots = Set(new RankedBallot(List(alice, bob)))
+    val ballots = Seq(new RankedBallot(List(alice, bob)))
 
     val result = election.countBallots(ballots)
 
@@ -20,11 +20,10 @@ class SchulzeElectionSpec extends BaseSpec {
 
     val election = new RankedSchulzeElection(candidates)
 
-    val ballots = (
+    val ballots =
       (1 to 4).map(_ => new RankedBallot(List(alice, bob, carol, david))) ++
         (1 to 2).map(_ => new RankedBallot(List(bob, carol, alice, david))) ++
         (1 to 3).map(_ => new RankedBallot(List(carol, alice, bob, david)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 

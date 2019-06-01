@@ -10,15 +10,15 @@ class RankedPairsElectionResult(
                                   ) extends ElectionResult
 
 class RankedBallotRankedPairsElection(val candidates: Set[Candidate]) extends RankedPairsElection[RankedBallot] {
-  def calculatePreferenceMatrix(ballots: Set[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots)
+  def calculatePreferenceMatrix(ballots: Seq[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots)
 }
 
 class ScoreBallotRankedPairsElection(val candidates: Set[Candidate]) extends RankedPairsElection[ScoreBallot] {
-  def calculatePreferenceMatrix(ballots: Set[ScoreBallot]) = PreferenceMatrix.fromScoreBallots(candidates, ballots)
+  def calculatePreferenceMatrix(ballots: Seq[ScoreBallot]) = PreferenceMatrix.fromScoreBallots(candidates, ballots)
 }
 
 abstract class RankedPairsElection[BallotT <: Ballot] extends Election[BallotT, RankedPairsElectionResult] {
-  def countBallots(ballots: Set[BallotT]): RankedPairsElectionResult = {
+  def countBallots(ballots: Seq[BallotT]): RankedPairsElectionResult = {
     val preferenceMatrix = calculatePreferenceMatrix(ballots)
     val strongestPreferences: Seq[Preference[Candidate]] = preferenceMatrix.preferencesLargestFirst
 
@@ -41,5 +41,5 @@ abstract class RankedPairsElection[BallotT <: Ballot] extends Election[BallotT, 
     new RankedPairsElectionResult(preferenceMatrix, strongestPreferences, acyclicPreferenceGraph, winner)
   }
 
-  def calculatePreferenceMatrix(ballots: Set[BallotT]): PreferenceMatrix
+  def calculatePreferenceMatrix(ballots: Seq[BallotT]): PreferenceMatrix
 }

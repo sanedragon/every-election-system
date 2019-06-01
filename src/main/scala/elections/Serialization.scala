@@ -53,6 +53,37 @@ object Serialization {
       )
     })
 
+    trait RunElection {
+      val election: Election[_, _]
+      val ballots: Seq[Ballot]
+    }
+
+    case class RunSTVElection(election: SingleTransferableVoteElection, ballots: Seq[RankedBallot]) extends RunElection
+    case class RunRRVElection(election: ReweightedRangeVoteElection, ballots: Seq[ScoreBallot]) extends RunElection
+
+    implicit val runElectionFormat: Format[RunElection] = new Format[RunElection] {
+      override def writes(o: RunElection): JsValue = ???
+
+      override def reads(json: JsValue): JsResult[RunElection] = {
+        val maybeElection = (json \ "election").toOption.map(readElection)
+        maybeElection match {
+          case Some(election:SingleTransferableVoteElection) => {
+            (json \ "ballots").toOption
+              .map(ballotsJson => readRankedBallots(election.candidates, ballotsJson))
+              .map(ballots => JsSuccess(RunSTVElection(election, ballots)))
+              .getOrElse(JsError())
+          }
+          case Some(election:ReweightedRangeVoteElection) => {
+            (json \ "ballots").toOption
+              .map(ballotsJson => readScoreBallots(election.candidates, ballotsJson))
+              .map(ballots => JsSuccess(RunRRVElection(election, ballots)))
+              .getOrElse(JsError())
+          }
+          case _ => JsError()
+        }
+      }
+    }
+
     def readElection(jsonStr: String): Election[_ <: Ballot, _ <: ElectionResult] = readElection(Json.parse(jsonStr))
 
     def readElection(json: JsValue): Election[_ <: Ballot, _ <: ElectionResult] = {
@@ -60,16 +91,6 @@ object Serialization {
         case JsString("SingleTransferableVote") => json.validate[SingleTransferableVoteElection].get
         case JsString("ReweightedRangeVote") => json.validate[ReweightedRangeVoteElection].get
       }
-    }
-
-    def readElectionAndBallots(jsonStr: String): (Election[_ <: Ballot, _ <: ElectionResult], Seq[Ballot]) = {
-      val json = Json.parse(jsonStr)
-      val election = readElection((json \ "election").get)
-      val ballots = election match {
-        case _:SingleTransferableVoteElection => readRankedBallots(election.candidates, (json \ "ballots").get)
-        case _:ReweightedRangeVoteElection => readScoreBallots(election.candidates, (json \ "ballots").get)
-      }
-      (election, ballots)
     }
 
     def readRankedBallots(candidates: Set[Candidate], value: JsValue): Seq[RankedBallot] = {

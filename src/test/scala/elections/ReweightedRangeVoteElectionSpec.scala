@@ -9,7 +9,7 @@ class ReweightedRangeVoteElectionSpec extends BaseSpec {
 
     val election = new ReweightedRangeVoteElection(candidates, 1)
 
-    val ballots = Set(new ScoreBallot(Map(alice -> 1, bob -> 0)))
+    val ballots = Seq(new ScoreBallot(Map(alice -> 1, bob -> 0)))
 
     val result = election.countBallots(ballots)
 
@@ -22,10 +22,9 @@ class ReweightedRangeVoteElectionSpec extends BaseSpec {
 
     val election = new ReweightedRangeVoteElection(candidates, 2)
 
-    val ballots = (
+    val ballots =
         (1 to 10).map(_ => new ScoreBallot(Map(alice -> 10, bob -> 0, carol -> 9, david -> 0))) ++
         (1 to 12).map(_ => new ScoreBallot(Map(alice -> 0, bob -> 10, carol -> 0, david -> 9)))
-      ).toSet
 
     val result = election.countBallots(ballots)
 

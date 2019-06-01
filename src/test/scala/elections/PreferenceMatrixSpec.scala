@@ -5,7 +5,7 @@ class PreferenceMatrixSpec extends BaseSpec {
     val candidates = Set(alice, bob, carol)
     val election = new RankedBallotRankedPairsElection(candidates)
 
-    val ballots = Set(new RankedBallot(List(alice, bob, carol)))
+    val ballots = Seq(new RankedBallot(List(alice, bob, carol)))
 
     val preferenceMatrix = PreferenceMatrix.fromRankedBallots(candidates, ballots)
 
@@ -27,7 +27,7 @@ class PreferenceMatrixSpec extends BaseSpec {
     val candidates = Set(alice, bob, carol)
     val election = new RankedBallotRankedPairsElection(candidates)
 
-    val ballots = Set(
+    val ballots = Seq(
       new RankedBallot(List(alice, bob, carol)),
       new RankedBallot(List(bob, alice, carol)),
       new RankedBallot(List(alice, carol, bob)),
@@ -53,7 +53,7 @@ class PreferenceMatrixSpec extends BaseSpec {
     val candidates = Set(alice, bob, carol, david)
     val election = new ScoreBallotRankedPairsElection(candidates)
 
-    val ballots = Set(
+    val ballots = Seq(
       new ScoreBallot(Map(alice -> 0, bob -> 2, carol -> 2))
     )
 
@@ -82,7 +82,7 @@ class PreferenceMatrixSpec extends BaseSpec {
     val candidates = Set(alice, bob, carol, david)
     val election = new ScoreBallotRankedPairsElection(candidates)
 
-    val ballots = Set(
+    val ballots = Seq(
       new ScoreBallot(Map(alice -> 0, bob -> 2, carol -> 2)),
       new ScoreBallot(Map(alice -> 1, bob -> 2, carol -> 10, david -> 5))
     )

@@ -33,12 +33,12 @@ class ReweightedRangeVoteElection(
                                    val diversityRequirements: DiversityRequirements = DiversityRequirements.none
                                     ) extends Election[ScoreBallot, RRVElectionResult] {
 
-  def countBallots(ballots: Set[ScoreBallot]): RRVElectionResult = {
+  def countBallots(ballots: Seq[ScoreBallot]): RRVElectionResult = {
     val initialWeightedBallots = ballots.map(b => new WeightedScoreBallot(b, 1.0))
     new RRVElectionResult(recurseRound(initialWeightedBallots, Set.empty, numPositions))
   }
 
-  def recurseRound(ballots: Set[WeightedScoreBallot], electedCandidates: Set[Candidate], numPositionsLeft: Int): List[RRVElectionRoundResult] = {
+  def recurseRound(ballots: Seq[WeightedScoreBallot], electedCandidates: Set[Candidate], numPositionsLeft: Int): List[RRVElectionRoundResult] = {
     val diversityExcludedCandidates =
       diversityRequirements.excludedCandidates(
         numPositionsLeft,
@@ -67,7 +67,7 @@ class ReweightedRangeVoteElection(
       roundResult :: recurseRound(reweightedBallots, newElectedCandidates, numPositionsLeft - 1)
     }
   }
-  def weightBallots(ballots: Set[ScoreBallot], electedCandidates: Set[Candidate]): Set[WeightedScoreBallot] = {
+  def weightBallots(ballots: Seq[ScoreBallot], electedCandidates: Set[Candidate]): Seq[WeightedScoreBallot] = {
     ballots.map(b => {
       val sumOfScoresOfWinners = electedCandidates.foldLeft(0.0)((sum, c) => sum + b.normalizedScores.getOrElse(c,0.0))
       val weight = weightConstant / (weightConstant + sumOfScoresOfWinners)

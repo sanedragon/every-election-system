@@ -61,7 +61,7 @@ case class Preference[T](yes: T, no: T, strength: Double)
 }
 
 object PreferenceMatrix {
-  def fromRankedBallots(candidates: Set[Candidate], ballots: Set[RankedBallot]): PreferenceMatrix = {
+  def fromRankedBallots(candidates: Set[Candidate], ballots: Seq[RankedBallot]): PreferenceMatrix = {
     val tally = mutable.Map.empty[(Candidate, Candidate), Int].withDefaultValue(0)
 
     ballots.foreach(ballot => {
@@ -102,7 +102,7 @@ object PreferenceMatrix {
 
 
 
-  def fromScoreBallots(candidates: Set[Candidate], ballots: Set[ScoreBallot]): PreferenceMatrix = {
+  def fromScoreBallots(candidates: Set[Candidate], ballots: Seq[ScoreBallot]): PreferenceMatrix = {
     val tally = mutable.Map.empty[(Candidate, Candidate), Double].withDefaultValue(0)
 
     // TODO: Allow this to be changed

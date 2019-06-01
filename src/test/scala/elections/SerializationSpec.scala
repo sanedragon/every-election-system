@@ -1,7 +1,7 @@
 package elections
 
-import Serialization.{readElection, readElectionAndBallots}
-import play.api.libs.json.{JsValue, Json}
+import Serialization.{RunElection, RunRRVElection, RunSTVElection, readElection}
+import play.api.libs.json.Json
 
 class SerializationSpec extends BaseSpec {
   "readElection" should "deserialize a trivial SingleTransferableVoteElection" in {
@@ -131,8 +131,9 @@ class SerializationSpec extends BaseSpec {
         |}
       """.stripMargin
 
-    val (election, ballots) = readElectionAndBallots(json) match {
-      case (e: ReweightedRangeVoteElection, bs: Seq[ScoreBallot]) => (e, bs)
+
+    val (election, ballots) = Json.parse(json).as[RunElection] match {
+      case RunRRVElection(e: ReweightedRangeVoteElection, bs: Seq[ScoreBallot]) => (e, bs)
       case x => fail(x.toString)
     }
 
@@ -154,8 +155,8 @@ class SerializationSpec extends BaseSpec {
         |}
       """.stripMargin
 
-    val (election, ballots) = readElectionAndBallots(json) match {
-      case (e: SingleTransferableVoteElection, bs: Seq[RankedBallot]) => (e, bs)
+    val (election, ballots) = Json.parse(json).as[RunElection] match {
+      case RunSTVElection(e: SingleTransferableVoteElection, bs: Seq[RankedBallot]) => (e, bs)
       case x => fail(x.toString)
     }
 

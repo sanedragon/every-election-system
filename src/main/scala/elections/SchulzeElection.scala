@@ -5,17 +5,17 @@ import scalax.collection.Graph
 case class SchulzeElectionResult(preferenceMatrix: PreferenceMatrix, rounds: List[SchulzeEliminationRound]) extends ElectionResult
 
 class RankedSchulzeElection(val candidates: Set[Candidate]) extends SchulzeElection[RankedBallot] {
-  def calculatePreferenceMatrix(ballots: Set[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots)
+  def calculatePreferenceMatrix(ballots: Seq[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots)
 }
 
 class ScoreSchulzeElection(val candidates: Set[Candidate]) extends SchulzeElection[ScoreBallot] {
-  def calculatePreferenceMatrix(ballots: Set[ScoreBallot]) = PreferenceMatrix.fromScoreBallots(candidates, ballots)
+  def calculatePreferenceMatrix(ballots: Seq[ScoreBallot]) = PreferenceMatrix.fromScoreBallots(candidates, ballots)
 }
 
 case class SchulzeEliminationRound(val schwartzSet: Set[Candidate], prunedPreferences: List[Preference[Candidate]])
 
 abstract class SchulzeElection[BallotT<:Ballot] extends Election[BallotT, SchulzeElectionResult] {
-  def countBallots(ballots: Set[BallotT]): SchulzeElectionResult = {
+  def countBallots(ballots: Seq[BallotT]): SchulzeElectionResult = {
     val preferenceMatrix = calculatePreferenceMatrix(ballots)
     val preferences = preferenceMatrix.preferencesSmallestFirst.toList
     SchulzeElectionResult(preferenceMatrix, recurseRound(candidates, preferences))
@@ -41,6 +41,6 @@ abstract class SchulzeElection[BallotT<:Ballot] extends Election[BallotT, Schulz
   }
 
 
-  def calculatePreferenceMatrix(ballots: Set[BallotT]): PreferenceMatrix
+  def calculatePreferenceMatrix(ballots: Seq[BallotT]): PreferenceMatrix
 
 }

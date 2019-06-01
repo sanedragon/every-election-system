@@ -28,7 +28,7 @@ class SingleTransferableVoteElection(
                                       val diversityRequirements: DiversityRequirements = DiversityRequirements.none
                                     ) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
 
-  def countBallots(ballots: Set[RankedBallot]): SingleTransferableVoteElectionResult = {
+  def countBallots(ballots: Seq[RankedBallot]): SingleTransferableVoteElectionResult = {
     val votesToGetElected = quota(ballots.size, numPositions)
 
     val initialWeightedBallots = ballots.map(b => WeightedRankedBallot(b,1,b.ranking))
@@ -45,7 +45,7 @@ class SingleTransferableVoteElection(
   }
 
   def recurseRound(
-                    ballots: Set[WeightedRankedBallot],
+                    ballots: Seq[WeightedRankedBallot],
                     quota: Double,
                     numPositionsRemaining: Int,
                     remainingCandidates: Set[Candidate],
@@ -61,14 +61,18 @@ class SingleTransferableVoteElection(
           tally.updated(candidateVotedFor, tally(candidateVotedFor) + ballot.weight)
         })
 
-      val winners: Set[Candidate] = firstPlaceVoteCountByCandidate.foldLeft(Set.empty[Candidate])((winners, p) => {
-        val (candidate, count) = p
-        if (count >= quota) {
-          winners + candidate
-        } else {
-          winners
-        }
-      })
+      val winners: Set[Candidate] = if (remainingCandidates.size == 1 && numPositionsRemaining == 1) {
+        remainingCandidates
+      } else {
+        firstPlaceVoteCountByCandidate.foldLeft(Set.empty[Candidate])((winners, p) => {
+          val (candidate, count) = p
+          if (count >= quota) {
+            winners + candidate
+          } else {
+            winners
+          }
+        })
+      }
 
       val losers: Set[Candidate] = if (winners.isEmpty) {
         val lowestVoteCount = firstPlaceVoteCountByCandidate.values.min
@@ -95,7 +99,7 @@ class SingleTransferableVoteElection(
       val eliminatedCandidates = winners ++ losers ++ diversityExcludedCandidates
 
       if (eliminatedCandidates == remainingCandidates) {
-        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) :: Nil
+        STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) :: Nil
       } else if (eliminatedCandidates.nonEmpty) {
         val winnerQuotaFactors: Map[Candidate, Double] =
             firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
@@ -105,7 +109,7 @@ class SingleTransferableVoteElection(
               } else factors
           })
 
-        val newWeightedBallots: Set[WeightedRankedBallot] = ballots.map(b => {
+        val newWeightedBallots: Seq[WeightedRankedBallot] = ballots.map(b => {
           WeightedRankedBallot(
             b.originalBallot,
             winnerQuotaFactors.getOrElse(b.remainingVote.head, 1.0) * b.weight,
@@ -113,7 +117,7 @@ class SingleTransferableVoteElection(
           )
         })
 
-        new STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) ::
+        STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) ::
           recurseRound(
             newWeightedBallots,
             quota,
