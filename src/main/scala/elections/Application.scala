@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Directives._
 import elections.Serialization._
 import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 object Application {
   implicit val actorSystem: ActorSystem = ActorSystem("election-actor-system")
