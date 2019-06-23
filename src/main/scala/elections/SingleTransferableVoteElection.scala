@@ -94,7 +94,7 @@ case class FirstPlaceVotesEliminator(tieBreakerFactory: Seq[RankedBallot] => STV
 }
 
 case class RankedPairsEliminator(candidates: Set[Candidate]) extends STVEliminator {
-  val eliminatorElection = new RankedBallotRankedPairsElection(candidates)
+  val eliminatorElection = new RankedBallotRankedPairsElection(candidates, reverse = true)
   var maybeResult: Option[RankedPairsElectionResult] = None
   def selectLoser(
                    firstPlaceVoteCountByCandidate: Map[Candidate, Double],
@@ -102,8 +102,7 @@ case class RankedPairsEliminator(candidates: Set[Candidate]) extends STVEliminat
                    eligibleCandidates: Set[Candidate]
                  ): (Option[Candidate], Option[TieBreakResult]) = {
     if (maybeResult.isEmpty) {
-      val reversedBallots = ballots.map(b => new RankedBallot(b.ranking.reverse))
-      val result = eliminatorElection.countBallots(reversedBallots)
+      val result = eliminatorElection.countBallots(ballots)
       maybeResult = Some(result)
     }
     val result = maybeResult.get

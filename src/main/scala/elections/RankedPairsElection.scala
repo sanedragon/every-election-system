@@ -8,10 +8,11 @@ class RankedPairsElectionResult(
                                     val lockedPreferences: Graph[Candidate, Preference],
                                     val orderedCandidates: Seq[(Candidate, Double)]
                                   ) extends ElectionResult {
+  val winner = orderedCandidates.head
 }
 
-class RankedBallotRankedPairsElection(val candidates: Set[Candidate]) extends RankedPairsElection[RankedBallot] {
-  def calculatePreferenceMatrix(ballots: Seq[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots)
+class RankedBallotRankedPairsElection(val candidates: Set[Candidate], reverse: Boolean = false) extends RankedPairsElection[RankedBallot] {
+  def calculatePreferenceMatrix(ballots: Seq[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots, reverse)
 }
 
 class ScoreBallotRankedPairsElection(val candidates: Set[Candidate]) extends RankedPairsElection[ScoreBallot] {

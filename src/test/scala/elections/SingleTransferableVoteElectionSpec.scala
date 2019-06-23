@@ -16,7 +16,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     result.rounds.size should be (1)
     result.rounds.head.winners should be (Set(alice))
-    result.rounds.head.losers should be (Set.empty)
+    result.rounds.head.loser should be ( None )
     result.rounds.head.firstPlaceVotes(alice) should be (1)
     result.rounds.head.firstPlaceVotes(bob) should be (0)
   }
@@ -40,7 +40,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set(alice))
 
     // No losers because there are winners.
-    result.rounds.head.losers should be (Set.empty)
+    result.rounds.head.loser should be (None)
 
     // In the second round, nobody has met the quota.
     // All of the ballots where alice got first place now have weight 0 because
@@ -48,12 +48,12 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds(1).firstPlaceVotes should be (Map(bob -> 2.0, carol -> 3.0, david -> 0.0))
     result.rounds(1).winners should be (Set.empty)
     // David has the lowest first-place vote count (0) and is eliminated
-    result.rounds(1).losers should be (Set(david))
+    result.rounds(1).loser should be (Some(david))
 
     // Eliminating David did not move any first place votes
     result.rounds(2).winners should be (Set.empty)
     // Now Bob has the fewest first place votes (2)
-    result.rounds(2).losers should be (Set(bob))
+    result.rounds(2).loser should be (Some(bob))
 
     // Bob's votes get transferred to Carol in the next round
     result.rounds(3).winners should be (Set(carol))
@@ -83,7 +83,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set(alice))
 
     // No losers because there are winners.
-    result.rounds.head.losers should be (Set.empty)
+    result.rounds.head.loser should be (None)
 
     // In the second round, nobody has met the quota.
     // This time, the ballots cast for alice still have weight 1/3 because only 2/3 of them were
@@ -116,7 +116,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set(alice, carol))
 
     // No losers because there are winners.
-    result.rounds.head.losers should be (Set.empty)
+    result.rounds.head.loser should be (None)
 
     // That's all!
     result.rounds.size should be (1)
@@ -142,13 +142,13 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set.empty)
 
     // David loses with no first place votes.
-    result.rounds.head.losers should be (Set(david))
+    result.rounds.head.loser should be (Some(david))
 
     // In the second round, nobody has met the quota.
     result.rounds(1).firstPlaceVotes should be (Map(alice -> 4.0, bob -> 2.0, carol -> 3.0))
     result.rounds(1).winners should be (Set.empty)
     // Bob has the lowest first-place vote count (2) and is eliminated
-    result.rounds(1).losers should be (Set(bob))
+    result.rounds(1).loser should be (Some(bob))
 
     // Eliminating Bob gave Carol 2 votes, so she has 5 now.
     result.rounds(2).firstPlaceVotes should be (Map(alice -> 4.0, carol -> 5.0))
@@ -182,13 +182,13 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set.empty)
 
     // David loses with no first place votes.
-    result.rounds.head.losers should be (Set(david))
+    result.rounds.head.loser should be (Some(david))
 
     // In the second round, nobody has met the quota.
     result.rounds(1).firstPlaceVotes should be (Map(alice -> 4.0, bob -> 4.0, carol -> 4.0))
     result.rounds(1).winners should be (Set.empty)
-    // all three candidates tied, so they all lost
-    result.rounds(1).losers should be (Set(alice, bob, carol))
+    // all three candidates tied, so they all lost FIXME
+    result.rounds(1).loser should be (Some(alice))
 
     result.rounds.size should be (2)
 
@@ -221,7 +221,7 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.rounds.head.winners should be (Set(alex))
 
     // No losers because there are winners.
-    result.rounds.head.losers should be (Set.empty)
+    result.rounds.head.loser should be (None)
 
     // Only one "a" candidate is allowed
     result.rounds.head.diversityExcluded should be (Set(adam))

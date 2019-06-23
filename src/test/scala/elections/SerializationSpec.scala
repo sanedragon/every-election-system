@@ -176,8 +176,10 @@ class SerializationSpec extends BaseSpec {
             david -> 3.0
           ),
           winners = Set.empty,
-          losers = Set(david),
+          loser = Some(david),
           diversityExcluded = Set.empty,
+          diversityProtected = Set.empty,
+          tieBreakResult = None,
           exhaustedBallotWeight = 0
         ),
         STVRoundResult(
@@ -187,8 +189,10 @@ class SerializationSpec extends BaseSpec {
             carol -> 5.0
           ),
           winners = Set(alice),
-          losers = Set.empty,
+          loser = None,
           diversityExcluded = Set(carol),
+          diversityProtected = Set.empty,
+          tieBreakResult = None,
           exhaustedBallotWeight = 0
         ),
         STVRoundResult(
@@ -196,8 +200,10 @@ class SerializationSpec extends BaseSpec {
             bob -> 10.0,
           ),
           winners = Set(bob),
-          losers = Set.empty,
+          loser = None,
           diversityExcluded = Set.empty,
+          diversityProtected = Set.empty,
+          tieBreakResult = None,
           exhaustedBallotWeight = 0
         ),
       ),
