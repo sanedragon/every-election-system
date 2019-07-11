@@ -50,12 +50,18 @@ case class DiversityRequirements(
 
   trait Requirement {
     def matches(candidate: Candidate): Boolean
+    def satisfyingCategorySet: Set[String]
+    def unsatisfyingCategorySet: Set[String]
   }
   case class Is(category: String) extends Requirement {
     def matches(candidate: Candidate): Boolean = candidate.diversityCategories.contains(category)
+    val satisfyingCategorySet: Set[String] = Set(category)
+    val unsatisfyingCategorySet: Set[String] = Set.empty
   }
   case class IsNot(category: String) extends Requirement {
     def matches(candidate: Candidate): Boolean = !candidate.diversityCategories.contains(category)
+    val satisfyingCategorySet: Set[String] = Set.empty
+    val unsatisfyingCategorySet: Set[String] = Set(category)
   }
 
   /*
@@ -118,44 +124,97 @@ case class DiversityRequirements(
     }
   }
 
+
   def excludedCandidates(
                           numRemainingPositions: Int,
                           alreadyElectedCandidates: Set[Candidate],
                           remainingCandidates: Set[Candidate]
                         ): Set[Candidate] = {
-    // First, look for any candidates that would make satisfying the requirements impossible
-    val tryHardFilteredCandidates = remainingCandidates.filter(
-      doesCandidateMakeSatisfyingRequirementsImpossible(
-        numRemainingPositions,
-        alreadyElectedCandidates,
-        remainingCandidates,
-        _
-      )
+    val numCandidatesElectedByCategory: Map[String, Int] = categories.map(category =>
+      category -> alreadyElectedCandidates.count(candidate => candidate.diversityCategories.contains(category))
+    ).toMap
+
+    // To fill the minimum given the number of spots remaining, further candidates must be part of these categories
+    val mandatoryCategories = minimums.keySet.filter(
+      category => numCandidatesElectedByCategory(category) + numRemainingPositions <= minimums(category)
     )
 
-    // If that's *all* the candidates, fall back to a solution that will get us a partial result
-    if (tryHardFilteredCandidates != remainingCandidates) {
-      tryHardFilteredCandidates
+    // All the spots for these categories have been filled, so further candidates must not be part of these categories
+    val forbiddenCategories = maximums.keySet.filter(
+      category => numCandidatesElectedByCategory(category) >= maximums(category)
+    )
+
+    val simplyFilteredCandidates = remainingCandidates.filterNot(c =>
+      mandatoryCategories.forall(c.diversityCategories.contains) &&
+        forbiddenCategories.forall(!c.diversityCategories.contains(_))
+    )
+    if(simplyFilteredCandidates.nonEmpty) {
+      simplyFilteredCandidates
     } else {
-      val numCandidatesElectedByCategory: Map[String, Int] = categories.map(category =>
-        category -> alreadyElectedCandidates.count(candidate => candidate.diversityCategories.contains(category))
+      // Handle cases where two or more requirements result in a non-obvious exclusion requirement
+
+      val numRemainingToFillForMinimumByCategory = minimums.keys.map(category =>
+        category -> (minimums(category) - numCandidatesElectedByCategory(category))
       ).toMap
 
-      // To fill the minimum given the number of spots remaining, further candidates must be part of these categories
-      val mandatoryCategories = minimums.keySet.filter(
-        category => numCandidatesElectedByCategory(category) + numRemainingPositions <= minimums(category)
-      )
+      val numRemainingToFillForMaximumByCategory = maximums.keys.map(category =>
+        category -> (maximums(category) - numCandidatesElectedByCategory(category))
+      ).toMap
 
-      // All the spots for these categories have been filled, so further candidates must not be part of these categories
-      val forbiddenCategories = maximums.keySet.filter(
-        category => numCandidatesElectedByCategory(category) >= maximums(category)
-      )
+      val relevantMinimums = minimums.keys.filter(category => numRemainingToFillForMinimumByCategory(category) > 0).toSet
+      val relevantMaximums = maximums.keys.filter(category =>
+        numRemainingToFillForMaximumByCategory(category) <
+          math.min(numRemainingPositions, remainingCandidates.count(_.diversityCategories.contains(category)))
+      ).toSet
 
-      remainingCandidates.filterNot(c =>
-        mandatoryCategories.forall(c.diversityCategories.contains) &&
-          forbiddenCategories.forall(!c.diversityCategories.contains(_))
-      )
+      val numConstraints = relevantMaximums.size + relevantMinimums.size
+
+      val requirements = relevantMinimums.map(Is(_)) ++ relevantMaximums.map(IsNot(_))
+      val nonRequirementSlotsRemaining = requirements.map {
+        case Is(category)    => Is(category) -> (numRemainingPositions - numRemainingToFillForMinimumByCategory(category))
+        case IsNot(category) => IsNot(category) -> numRemainingToFillForMaximumByCategory(category)
+      }.toMap
+
+      // Fewer than two constraints or fewer than the number of free spots won't cause an issue.
+      if(requirements.isEmpty || numConstraints < math.max(2, nonRequirementSlotsRemaining.values.min)) {
+        Set.empty
+      } else {
+
+        def candidateSetWorks(candidates: Set[Candidate]): Boolean = {
+          relevantMinimums.forall(category => {
+            val numSatisfyingMinimum = candidates.count(_.diversityCategories.contains(category))
+            numSatisfyingMinimum >= numRemainingToFillForMinimumByCategory(category)
+          }) && relevantMaximums.forall(category => {
+            val numInMaximumCategory = candidates.count(_.diversityCategories.contains(category))
+            numInMaximumCategory <= (numRemainingToFillForMaximumByCategory(category) - 1)
+          })
+        }
+
+        val candidatesByCategorySet = (relevantMaximums ++ relevantMinimums).subsets
+          .map(categorySet => categorySet -> remainingCandidates.filter(_.diversityCategories == categorySet))
+          .filter(_._2.nonEmpty)
+          .toMap
+
+        val worstCaseCategorySet = requirements.flatMap(_.unsatisfyingCategorySet)
+
+        // if we elect someone from that set, will it prevent satisfying the constraints
+        if(candidatesByCategorySet.contains(worstCaseCategorySet) && candidatesByCategorySet(worstCaseCategorySet).size < remainingCandidates.size) {
+          val candidatesSatisfyingAtLeastOneRequirement = remainingCandidates.filter(candidate => requirements.exists(_.matches(candidate)))
+          if(candidatesSatisfyingAtLeastOneRequirement.size < (numRemainingPositions - 1)) {
+            // Either the set works, in which case, great, or else it doesn't and we are filling out a partial result
+            Set.empty
+          } else if(candidatesSatisfyingAtLeastOneRequirement.subsets(numRemainingPositions - 1).exists(candidateSetWorks)) {
+            // The above condition has the potential to be VERY expensive if the number of candidates is large
+            Set.empty
+          } else {
+            candidatesByCategorySet(worstCaseCategorySet)
+          }
+        } else {
+          // Only handle the worst case for now
+          Set.empty
+        }
+      }
+
     }
-
   }
 }

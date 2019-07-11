@@ -105,10 +105,11 @@ class DiversityRequirementsSpec extends BaseSpec {
 
   it should "filter candidates that don't immediately break requirements but prevent them from being filled" in {
     val andre = Candidate("Andre 3000", Set("man", "poc"))
-    val beyonce = Candidate("Beyonce", Set("woman", "poc"))
-    val cher = Candidate("Cher", Set("woman"))
+    val beyonce = Candidate("Beyonce", Set("poc"))
+    val cher = Candidate("Cher", Set())
     val dylan = Candidate("Bob Dylan", Set("man"))
     val elton = Candidate("Elton John", Set("man"))
+    val fiona = Candidate("Fiona Apple", Set())
 
     val diversityRequirements = new DiversityRequirements(
       minimums = Map("poc" -> 2),
@@ -118,7 +119,7 @@ class DiversityRequirementsSpec extends BaseSpec {
     diversityRequirements.excludedCandidates(
       3,
       Set(elton),
-      Set(andre, beyonce, cher, dylan)
+      Set(andre, beyonce, cher, dylan, fiona)
     ) should be ( Set(dylan) )
 
   }
