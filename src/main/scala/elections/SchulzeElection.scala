@@ -57,7 +57,7 @@ abstract class SchulzeElection[BallotT<:Ballot] extends Election[BallotT, Schulz
       } else {
         val minWeight = preferences.map(_.weight).min
         val (newPreferences, eliminatedPreferences) = preferences.partition(_.weight > minWeight)
-        PreferenceEliminationRound(schwartzSet, newPreferences, eliminatedPreferences) :: recurseRound(schwartzSet, preferences.tail)
+        PreferenceEliminationRound(schwartzSet, newPreferences, eliminatedPreferences) :: recurseRound(schwartzSet, newPreferences)
       }
 
 

@@ -227,6 +227,7 @@ class SerializationSpec extends BaseSpec {
         |    },
         |    "winners" : [ ],
         |    "losers" : [ "David" ],
+        |    "diversityProtected" : [ ],
         |    "diversityExcluded" : [ ],
         |    "exhaustedBallotWeight" : 0
         |  }, {
@@ -237,6 +238,7 @@ class SerializationSpec extends BaseSpec {
         |    },
         |    "winners" : [ "Alice" ],
         |    "losers" : [ ],
+        |    "diversityProtected" : [ ],
         |    "diversityExcluded" : [ "Carol" ],
         |    "exhaustedBallotWeight" : 0
         |  }, {
@@ -245,6 +247,7 @@ class SerializationSpec extends BaseSpec {
         |    },
         |    "winners" : [ "Bob" ],
         |    "losers" : [ ],
+        |    "diversityProtected" : [ ],
         |    "diversityExcluded" : [ ],
         |    "exhaustedBallotWeight" : 0
         |  } ]

@@ -3,6 +3,8 @@ package elections
 import play.api.libs.json._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
+
+import scala.math.BigDecimal.RoundingMode
   /*
    election:
      type: String/Enum
@@ -44,7 +46,7 @@ object Serialization {
       (__ \ "numPositions").readWithDefault(1) and
       (__ \ "weightConstant").readWithDefault(ReweightedRangeVoteElection.defaultWeightConstant) and
       (__ \ "diversityRequirements").readWithDefault[DiversityRequirements](DiversityRequirements.none)
-    )((candidates: Set[Candidate], numPositions: Int, weightConstant: Double, diversityRequirements: DiversityRequirements) => {
+    )((candidates: Set[Candidate], numPositions: Int, weightConstant: BigDecimal, diversityRequirements: DiversityRequirements) => {
       new ReweightedRangeVoteElection(
         candidates = candidates,
         numPositions = numPositions,
@@ -71,15 +73,15 @@ object Serialization {
             (json \ "ballots").toOption
               .map(ballotsJson => readRankedBallots(election.candidates, ballotsJson))
               .map(ballots => JsSuccess(RunSTVElection(election, ballots)))
-              .getOrElse(JsError())
+              .getOrElse(JsError("ballots"))
           }
           case Some(election:ReweightedRangeVoteElection) => {
             (json \ "ballots").toOption
               .map(ballotsJson => readScoreBallots(election.candidates, ballotsJson))
               .map(ballots => JsSuccess(RunRRVElection(election, ballots)))
-              .getOrElse(JsError())
+              .getOrElse(JsError("ballots"))
           }
-          case _ => JsError()
+          case _ => JsError("election")
         }
       }
     }
@@ -88,8 +90,17 @@ object Serialization {
 
     def readElection(json: JsValue): Election[_ <: Ballot, _ <: ElectionResult] = {
       (json \ "type").get match {
-        case JsString("SingleTransferableVote") => json.validate[SingleTransferableVoteElection].get
-        case JsString("ReweightedRangeVote") => json.validate[ReweightedRangeVoteElection].get
+        case JsString("SingleTransferableVote") => {
+          json.validate[SingleTransferableVoteElection] match {
+            case JsSuccess(value, _) => value
+            case JsError(errors) => throw new Exception(errors.toString())
+          }
+        }
+        case JsString("ReweightedRangeVote") => json.validate[ReweightedRangeVoteElection] match {
+          case JsSuccess(value, _) => value
+          case JsError(errors) => throw new Exception(errors.toString())
+        }
+        case _ => throw new Exception("election type")
       }
     }
 
@@ -100,10 +111,12 @@ object Serialization {
           case JsArray(candidateNames) =>
             val candidateList = candidateNames.map {
               case JsString(name) => candidatesByName(name)
+              case _ => throw new Exception("malformed ballot entry")
             }
             new RankedBallot(candidateList)
+          case _ => throw new Exception("malformed ballot")
         }
-        case _ => ???
+        case _ => throw new Exception("malformed ballot list")
       }
     }
 
@@ -112,41 +125,47 @@ object Serialization {
       value match {
         case JsArray(ballots) => ballots.map {
           case JsObject(scores) => new ScoreBallot(scores.map {
-            case (name: String, JsNumber(score)) => candidatesByName(name) -> score.toInt
+            case (name: String, JsNumber(score)) => candidatesByName(name) -> score
+            case _ => throw new Exception("malformed ballot entry")
           }.toMap)
+          case _ => throw new Exception("malformed ballot")
         }
+        case _ => throw new Exception("malformed ballot list")
       }
     }
 
     implicit val stvRoundResultWriter: Writes[STVRoundResult] = (
-      (__ \ "firstPlaceVotes").write[Map[String, Double]] and
+      (__ \ "firstPlaceVotes").write[Map[String, BigDecimal]] and
       (__ \ "winners").write[Seq[String]] and
       (__ \ "losers").write[Seq[String]] and
       (__ \ "diversityProtected").write[Seq[String]] and
       (__ \ "diversityExcluded").write[Seq[String]] and
-      (__ \ "exhaustedBallotWeight").write[Double]
+      (__ \ "exhaustedBallotWeight").write[BigDecimal]
     )(round => {
-      val firstPlaceVotes: Map[String, Double] = round.firstPlaceVotes.map { case (c, v) => c.name -> v }
+      val firstPlaceVotes: Map[String, BigDecimal] = round.firstPlaceVotes.map {
+        case (c, v) => c.name -> v.setScale(3, RoundingMode.HALF_UP)
+      }
       val winners = round.winners.map(_.name).toSeq
       val losers = round.loser.map(_.name).toSeq
       val diversityProtected = round.diversityProtected.map(_.name).toSeq
       val diversityExcluded = round.diversityExcluded.map(_.name).toSeq
-      (firstPlaceVotes, winners, losers, diversityProtected, diversityExcluded, round.exhaustedBallotWeight)
+      (firstPlaceVotes, winners, losers, diversityProtected, diversityExcluded,
+        round.exhaustedBallotWeight.setScale(3, RoundingMode.HALF_UP))
     })
 
     implicit val stvElectionResultWriter: Writes[SingleTransferableVoteElectionResult] = (
       (__ \ "winners").write[Seq[String]] and
-      (__ \ "quota").write[Double] and
+      (__ \ "quota").write[BigDecimal] and
       (__ \ "rounds").write[Seq[STVRoundResult]]
     )(result => (result.winners.map(_.name), result.quota, result.rounds))
 
     implicit val rrvElectionRoundResultWriter: Writes[RRVElectionRoundResult] = (
       (__ \ "winner").write[String] and
-      (__ \ "scores").write[Map[String, Double]] and
+      (__ \ "scores").write[Map[String, BigDecimal]] and
       (__ \ "diversityExcluded").write[Seq[String]]
     )(round => {
       val winner = round.winner.name
-      val scores = round.scores.map { case (c, v) => c.name -> v }
+      val scores = round.scores.map { case (c, v) => c.name -> v.setScale(3, RoundingMode.HALF_UP) }
       val diversityExcluded = round.diversityExcluded.map(_.name).toSeq
       (winner, scores, diversityExcluded)
     })

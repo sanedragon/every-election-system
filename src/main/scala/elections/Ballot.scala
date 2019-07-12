@@ -10,14 +10,14 @@ abstract class Ballot {
   final override lazy val hashCode = id.hashCode()
 }
 
-class ScoreBallot( val scores: Map[Candidate, Int] ) extends Ballot {
+class ScoreBallot( val scores: Map[Candidate, BigDecimal] ) extends Ballot {
   def validate(candidates: Set[Candidate]): Boolean = {
     scores.keySet.forall(candidate => candidates.contains(candidate)) &&
     scores.values.forall(score => score >= 0)
   }
 
-  lazy val normalizedScores: Map[Candidate, Double] = {
-    val maxScore = scores.values.max.toDouble
+  lazy val normalizedScores: Map[Candidate, BigDecimal] = {
+    val maxScore = scores.values.max
     scores.mapValues(score => score / maxScore)
   }
 }
@@ -42,6 +42,6 @@ class SingleVoteBallot( val vote: Candidate ) extends Ballot {
   }
 }
 
-case class WeightedRankedBallot(originalBallot: RankedBallot, weight: Double, remainingVote: Seq[Candidate])
-case class WeightedScoreBallot(ballot: ScoreBallot, weight: Double)
+case class WeightedRankedBallot(originalBallot: RankedBallot, weight: BigDecimal, remainingVote: Seq[Candidate])
+case class WeightedScoreBallot(ballot: ScoreBallot, weight: BigDecimal)
 

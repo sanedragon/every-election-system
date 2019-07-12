@@ -4,7 +4,7 @@ class RRVElectionResult(val rounds: Seq[RRVElectionRoundResult]) extends Electio
   lazy val winners = rounds.map(_.winner)
 }
 
-case class RRVElectionRoundResult(scores: Map[Candidate, Double], diversityExcluded: Set[Candidate]) {
+case class RRVElectionRoundResult(scores: Map[Candidate, BigDecimal], diversityExcluded: Set[Candidate]) {
   // FIXME: handle ties
   lazy val winner: Candidate = scores.maxBy(_._2)._1
 }
@@ -12,24 +12,27 @@ case class RRVElectionRoundResult(scores: Map[Candidate, Double], diversityExclu
 object ReweightedRangeVoteElection {
 
   // No vote for a candidate is the same as marking them 0
-  val sumScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore
+  val sumScoreAggregation: (BigDecimal, BigDecimal) => BigDecimal =
+    (sumScore: BigDecimal, sumWeight: BigDecimal) => sumScore
 
   // No vote for a candidate does not affect their score, but a candidate could get elected with a tiny fraction of the vote
-  val averageScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore / sumWeight
+  val averageScoreAggregation: (BigDecimal, BigDecimal) => BigDecimal =
+    (sumScore: BigDecimal, sumWeight: BigDecimal) => sumScore / sumWeight
 
   // Compromise. Scoring a candidate zero negatively affects them more than not voting for them at all
-  val rootWeightScoreAggregation = (sumScore: Double, sumWeight: Double) => sumScore / math.sqrt(sumWeight)
+  val rootWeightScoreAggregation: (BigDecimal, BigDecimal) => BigDecimal =
+    (sumScore: BigDecimal, sumWeight: BigDecimal) => sumScore / math.sqrt(sumWeight.doubleValue())
 
-  val defaultScoreAggregation = sumScoreAggregation
-  val defaultWeightConstant: Double = 1.0
+  val defaultScoreAggregation: (BigDecimal, BigDecimal) => BigDecimal = sumScoreAggregation
+  val defaultWeightConstant: BigDecimal = 1.0
 }
 
 
 class ReweightedRangeVoteElection(
                                    val candidates: Set[Candidate],
                                    val numPositions: Int,
-                                   val scoreAggregation: (Double, Double) => Double = ReweightedRangeVoteElection.defaultScoreAggregation,
-                                   val weightConstant: Double = ReweightedRangeVoteElection.defaultWeightConstant,
+                                   val scoreAggregation: (BigDecimal, BigDecimal) => BigDecimal = ReweightedRangeVoteElection.defaultScoreAggregation,
+                                   val weightConstant: BigDecimal = ReweightedRangeVoteElection.defaultWeightConstant,
                                    val diversityRequirements: DiversityRequirements = DiversityRequirements.none
                                     ) extends Election[ScoreBallot, RRVElectionResult] {
 
@@ -49,8 +52,8 @@ class ReweightedRangeVoteElection(
     val remainingCandidates = candidates -- electedCandidates -- diversityExcludedCandidates
     if (numPositionsLeft == 0 || remainingCandidates.isEmpty) Nil
     else {
-      val roundResults = remainingCandidates.foldLeft(Map.empty[Candidate, Double])((m, candidate) => {
-        val (totalScore: Double, totalWeight: Double) = ballots.foldLeft(0.0, 0.0)((tally, wb) => {
+      val roundResults = remainingCandidates.foldLeft(Map.empty[Candidate, BigDecimal])((m, candidate) => {
+        val (totalScore: BigDecimal, totalWeight: BigDecimal) = ballots.foldLeft(BigDecimal(0), BigDecimal(0))((tally, wb) => {
           val (tallyScore, tallyWeight) = tally
           wb.ballot.normalizedScores.get(candidate).map(ballotScore =>
             (tallyScore + (wb.weight * ballotScore), tallyWeight + wb.weight)
@@ -69,7 +72,7 @@ class ReweightedRangeVoteElection(
   }
   def weightBallots(ballots: Seq[ScoreBallot], electedCandidates: Set[Candidate]): Seq[WeightedScoreBallot] = {
     ballots.map(b => {
-      val sumOfScoresOfWinners = electedCandidates.foldLeft(0.0)((sum, c) => sum + b.normalizedScores.getOrElse(c,0.0))
+      val sumOfScoresOfWinners = electedCandidates.foldLeft(BigDecimal(0))((sum, c) => sum + b.normalizedScores.getOrElse(c,BigDecimal(0)))
       val weight = weightConstant / (weightConstant + sumOfScoresOfWinners)
       WeightedScoreBallot(b, weight)
     })

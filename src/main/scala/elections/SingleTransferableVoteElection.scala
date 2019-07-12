@@ -1,12 +1,14 @@
 package elections
 
-class SingleTransferableVoteElectionResult(val rounds: Seq[STVRoundResult], val quota: Double) extends ElectionResult {
+import scala.math.BigDecimal.RoundingMode
+
+class SingleTransferableVoteElectionResult(val rounds: Seq[STVRoundResult], val quota: BigDecimal) extends ElectionResult {
   lazy val winners: Seq[Candidate] = rounds.flatMap(r => r.winners)
 }
 
 case class STVRoundResult(
-                           firstPlaceVotes: Map[Candidate, Double],
-                           exhaustedBallotWeight: Double,
+                           firstPlaceVotes: Map[Candidate, BigDecimal],
+                           exhaustedBallotWeight: BigDecimal,
                            winners: Set[Candidate],
                            loser: Option[Candidate],
                            diversityProtected: Set[Candidate],
@@ -18,11 +20,11 @@ object SingleTransferableVoteElection {
   // Droop Quota is more commonly used, and can be thought of as the smallest number of ballots a candidate can be on
   // where they have a mandate.
   // Note that the floor function is implicit in integer division
-  val DroopQuota: (Int, Int) => Double = (numBallots, numCandidates) => (numBallots / (numCandidates + 1)) + 1
+  val DroopQuota: (Int, Int) => BigDecimal = (numBallots, numCandidates) => (numBallots / (numCandidates + 1)) + 1
 
   // The Hare Quota can be thought of as the largest number of ballots before you have to select that candidate.
   // Using the Hare Quota tends toward under-representing larger groups.
-  val HareQuota: (Int, Int) => Double = (numBallots, numCandidates) => numBallots.toDouble / numCandidates
+  val HareQuota: (Int, Int) => BigDecimal = (numBallots, numCandidates) => BigDecimal(numBallots) / numCandidates
 
 }
 
@@ -62,7 +64,7 @@ case class RankedPairsSTVTieBreaker(ballots: Seq[RankedBallot]) extends STVTieBr
 
 trait STVEliminator {
   def selectLoser(
-                   firstPlaceVoteCountByCandidate: Map[Candidate, Double],
+                   firstPlaceVoteCountByCandidate: Map[Candidate, BigDecimal],
                    ballots: Seq[RankedBallot],
                    eligibleCandidates: Set[Candidate]
                  ): (Option[Candidate], Option[TieBreakResult])
@@ -70,7 +72,7 @@ trait STVEliminator {
 
 case class FirstPlaceVotesEliminator(tieBreakerFactory: Seq[RankedBallot] => STVTieBreaker) extends STVEliminator {
   def selectLoser(
-                   firstPlaceVoteCountByCandidate: Map[Candidate, Double],
+                   firstPlaceVoteCountByCandidate: Map[Candidate, BigDecimal],
                    ballots: Seq[RankedBallot],
                    eligibleCandidates: Set[Candidate]
                  ): (Option[Candidate], Option[TieBreakResult]) = {
@@ -97,7 +99,7 @@ case class RankedPairsEliminator(candidates: Set[Candidate]) extends STVEliminat
   val eliminatorElection = new RankedBallotRankedPairsElection(candidates, reverse = true)
   var maybeResult: Option[RankedPairsElectionResult] = None
   def selectLoser(
-                   firstPlaceVoteCountByCandidate: Map[Candidate, Double],
+                   firstPlaceVoteCountByCandidate: Map[Candidate, BigDecimal],
                    ballots: Seq[RankedBallot],
                    eligibleCandidates: Set[Candidate]
                  ): (Option[Candidate], Option[TieBreakResult]) = {
@@ -114,7 +116,7 @@ case class RankedPairsEliminator(candidates: Set[Candidate]) extends STVEliminat
 class SingleTransferableVoteElection(
                                       val candidates: Set[Candidate],
                                       val numPositions: Int,
-                                      val quota: (Int, Int) => Double = SingleTransferableVoteElection.DroopQuota,
+                                      val quota: (Int, Int) => BigDecimal = SingleTransferableVoteElection.DroopQuota,
                                       val diversityRequirements: DiversityRequirements = DiversityRequirements.none,
                                       val elimination: STVEliminator = FirstPlaceVotesEliminator(RankedPairsSTVTieBreaker.apply)
                                     ) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
@@ -138,7 +140,7 @@ class SingleTransferableVoteElection(
 
   def recurseRound(
                     ballots: Seq[WeightedRankedBallot],
-                    quota: Double,
+                    quota: BigDecimal,
                     numPositionsRemaining: Int,
                     remainingCandidates: Set[Candidate],
                     electedCandidates: Set[Candidate]
@@ -146,8 +148,8 @@ class SingleTransferableVoteElection(
     if (numPositionsRemaining == 0 || ballots.isEmpty)
       Nil
     else {
-      val zeroTally = remainingCandidates.map(c => c -> 0.0).toMap
-      val firstPlaceVoteCountByCandidate: Map[Candidate, Double] =
+      val zeroTally = remainingCandidates.map(c => c -> BigDecimal(0)).toMap
+      val firstPlaceVoteCountByCandidate: Map[Candidate, BigDecimal] =
         ballots.foldLeft(zeroTally)((tally, ballot) => {
           if(ballot.remainingVote.isEmpty) {
             tally
@@ -155,7 +157,7 @@ class SingleTransferableVoteElection(
             val candidateVotedFor = ballot.remainingVote.head
             tally.updated(candidateVotedFor, tally(candidateVotedFor) + ballot.weight)
           }
-        })
+        }).mapValues(count => count.setScale(6, RoundingMode.HALF_UP))
 
       val winners: Set[Candidate] = if (remainingCandidates.size <= numPositionsRemaining) {
         remainingCandidates
@@ -218,15 +220,15 @@ class SingleTransferableVoteElection(
           tieBreakResult
         ) :: Nil
       } else if (eliminatedCandidates.nonEmpty) {
-        val winnerQuotaFactors: Map[Candidate, Double] =
-            firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
+        val winnerQuotaFactors: Map[Candidate, BigDecimal] =
+            firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, BigDecimal])((factors, p) => {
               val (candidate, count) = p
               if (winners.contains(candidate)) {
                 factors.updated(candidate, (count - quota) / count)
               } else factors
           })
 
-        var exhaustedBallotWeight = 0.0
+        var exhaustedBallotWeight = BigDecimal(0)
         val newWeightedBallots: Seq[WeightedRankedBallot] = ballots.flatMap(b => {
           if(b.remainingVote.isEmpty) {
             exhaustedBallotWeight += b.weight
@@ -236,7 +238,7 @@ class SingleTransferableVoteElection(
             Some(
               WeightedRankedBallot(
                 b.originalBallot,
-                winnerQuotaFactors.getOrElse(b.remainingVote.head, 1.0) * b.weight,
+                winnerQuotaFactors.getOrElse(b.remainingVote.head, BigDecimal(1)) * b.weight,
                 b.remainingVote.filterNot(eliminatedCandidates.contains)
               )
             )

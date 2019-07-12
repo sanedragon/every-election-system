@@ -8,7 +8,7 @@ class RankedPairsElectionResult(
                                     val lockedPreferences: Graph[Candidate, Preference],
                                     val orderedCandidates: Seq[(Candidate, Double)]
                                   ) extends ElectionResult {
-  val winner = orderedCandidates.head
+  val winner = orderedCandidates.head._1
 }
 
 class RankedBallotRankedPairsElection(val candidates: Set[Candidate], reverse: Boolean = false) extends RankedPairsElection[RankedBallot] {

@@ -116,7 +116,9 @@ object PreferenceMatrix {
     ballots.foreach(ballot => {
       candidates.foreach(x => {candidates.foreach(y => {
         if(x != y) {
-          tally(x,y) += preferenceCalc(ballot.normalizedScores.get(x), ballot.normalizedScores.get(y))
+          tally(x,y) += preferenceCalc(
+            ballot.normalizedScores.get(x).map(_.doubleValue()),
+            ballot.normalizedScores.get(y).map(_.doubleValue()))
         }
       })})
     })

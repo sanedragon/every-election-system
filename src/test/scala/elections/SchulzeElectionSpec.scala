@@ -31,28 +31,28 @@ class SchulzeElectionSpec extends BaseSpec {
     val firstRound = result.rounds.head
 
     firstRound.schwartzSet should be (Set(alice, bob, carol))
-    firstRound.preferences.toList should be (List(
-      Preference(carol, alice, 1),
-      Preference(bob, carol, 3),
-      Preference(alice, bob, 5)
+    firstRound.preferences should be (Set(
+      Preference(alice, bob, 4 - 2 + 3),
+      Preference(carol, alice, -4 + 2 + 3),
+      Preference(bob, carol, 4 + 2 - 3),
     ))
 
     val secondRound = result.rounds(1)
     secondRound.schwartzSet should be (Set(alice, bob, carol))
-    secondRound.preferences.toList should be (List(
+    secondRound.preferences should be (Set(
       Preference(bob, carol, 3),
       Preference(alice, bob, 5)
     ))
 
     val thirdRound = result.rounds(2)
     thirdRound.schwartzSet should be (Set(alice, bob))
-    thirdRound.preferences.toList should be (List(
+    thirdRound.preferences should be (Set(
       Preference(alice, bob, 5)
     ))
 
     val fourthRound = result.rounds(3)
     fourthRound.schwartzSet should be (Set(alice))
-    fourthRound.preferences.toList should be (Nil)
+    fourthRound.preferences should be (Set.empty)
 
     result.rounds.size should be (4)
 

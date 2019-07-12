@@ -1,10 +1,29 @@
 package elections
 
 import elections.SingleTransferableVoteElection._
-import org.scalactic.TolerantNumerics
+import org.scalactic.{Equality, TolerantNumerics}
 
 class SingleTransferableVoteElectionSpec extends BaseSpec {
-  implicit val closeEnough = TolerantNumerics.tolerantDoubleEquality(0.00000001)
+  implicit val closeEnough: Equality[BigDecimal] = new Equality[BigDecimal] {
+    override def areEqual(a: BigDecimal, b: Any): Boolean = {
+      val diff = b match {
+        case d: Double => a - d
+        case bd: BigDecimal => a - bd
+        case i: Int => a - i
+      }
+      diff < 0.000001 && diff > -0.000001
+    }
+  }
+  implicit val closeEnoughDouble: Equality[Double] = new Equality[Double] {
+    override def areEqual(a: Double, b: Any): Boolean = {
+      val diff = b match {
+        case d: Double => a - d
+        case bd: BigDecimal => a - bd.doubleValue()
+        case i: Int => a - i
+      }
+      diff < 0.000001 && diff > -0.000001
+    }
+  }
 // FIXME: Add test for empty ballot, incomplete ballot, too many candidates eliminated, droop quota not integral
   // diversity requirements fail caused by multiple winners
   "A SingleTransferableVoteElection" should "count correctly for a trivial case" in {
@@ -88,7 +107,9 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     // In the second round, nobody has met the quota.
     // This time, the ballots cast for alice still have weight 1/3 because only 2/3 of them were
     // needed to meet the quota
-    result.rounds(1).firstPlaceVotes should be (Map(bob -> (2.0 + 6.0 * (1.0 / 3.0)), carol -> 3.0, david -> 0.0))
+    result.rounds(1).firstPlaceVotes(bob) should equal (2.0 + 6.0 * (1.0 / 3.0))
+    result.rounds(1).firstPlaceVotes(carol) should equal (3.0)
+    result.rounds(1).firstPlaceVotes(david) should equal (0.0)
     // Bob has met the quota, with 2 first place votes plus 6 1/3-weighted votes from team Alice
     result.rounds(1).winners should be (Set(bob))
 
@@ -152,15 +173,11 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
 
     // Eliminating Bob gave Carol 2 votes, so she has 5 now.
     result.rounds(2).firstPlaceVotes should be (Map(alice -> 4.0, carol -> 5.0))
-    result.rounds(2).winners should be (Set(carol))
+    result.rounds(2).winners should be (Set(alice, carol)) // because there are two spots to fill and two remaining candidates
 
-    // The remaining half-vote after Carol is elected goes to Alice, the last remaining candidate.
-    result.rounds(3).firstPlaceVotes(alice) should equal (4.5)
-    result.rounds(3).winners should be (Set(alice))
+    result.rounds.size should be (3)
 
-    result.rounds.size should be (4)
-
-    result.winners should be (List(carol, alice))
+    result.winners should be (List(alice, carol))
   }
 
   it should "handle a tie" in {
@@ -187,13 +204,14 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     // In the second round, nobody has met the quota.
     result.rounds(1).firstPlaceVotes should be (Map(alice -> 4.0, bob -> 4.0, carol -> 4.0))
     result.rounds(1).winners should be (Set.empty)
-    // all three candidates tied, so they all lost FIXME
-    result.rounds(1).loser should be (Some(alice))
+    result.rounds(1).loser should be (Some(bob)) // Bob loses the Ranked Pairs tie-breaker
 
-    result.rounds.size should be (2)
+    result.rounds(2).firstPlaceVotes should be (Map(alice -> 4.0, carol -> 8.0))
+    result.rounds(2).winners should be (Set(alice, carol))
 
-    // Nobody wins
-    result.winners should be (List.empty)
+    result.rounds.size should be (3)
+
+    result.winners should be (List(alice, carol))
   }
 
   it should "count correctly with diversity requirements" in {
