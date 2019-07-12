@@ -166,37 +166,43 @@ class SerializationSpec extends BaseSpec {
   }
 
   "Serialization" should "serialize an STV election result" in {
-    val result = new SingleTransferableVoteElectionResult(Seq(
-      STVRoundResult(
-        Map(
-          alice -> 5.0,
-          bob -> 4.0,
-          carol -> 4.0,
-          david -> 3.0
+    val result = new SingleTransferableVoteElectionResult(
+      Seq(
+        STVRoundResult(
+          Map(
+            alice -> 5.0,
+            bob -> 4.0,
+            carol -> 4.0,
+            david -> 3.0
+          ),
+          winners = Set.empty,
+          losers = Set(david),
+          diversityExcluded = Set.empty,
+          exhaustedBallotWeight = 0
         ),
-        winners = Set.empty,
-        losers = Set(david),
-        diversityExcluded = Set.empty
-      ),
-      STVRoundResult(
-        Map(
-          alice -> 7.0,
-          bob -> 4.0,
-          carol -> 5.0
+        STVRoundResult(
+          Map(
+            alice -> 7.0,
+            bob -> 4.0,
+            carol -> 5.0
+          ),
+          winners = Set(alice),
+          losers = Set.empty,
+          diversityExcluded = Set(carol),
+          exhaustedBallotWeight = 0
         ),
-        winners = Set(alice),
-        losers = Set.empty,
-        diversityExcluded = Set(carol)
-      ),
-      STVRoundResult(
-        Map(
-          bob -> 10.0,
+        STVRoundResult(
+          Map(
+            bob -> 10.0,
+          ),
+          winners = Set(bob),
+          losers = Set.empty,
+          diversityExcluded = Set.empty,
+          exhaustedBallotWeight = 0
         ),
-        winners = Set(bob),
-        losers = Set.empty,
-        diversityExcluded = Set.empty
       ),
-    ))
+      quota = 7.0
+    )
 
     import Serialization.stvElectionResultWriter
 
@@ -205,6 +211,7 @@ class SerializationSpec extends BaseSpec {
     val expected =
       """{
         |  "winners" : [ "Alice", "Bob" ],
+        |  "quota" : 7,
         |  "rounds" : [ {
         |    "firstPlaceVotes" : {
         |      "Alice" : 5,
@@ -214,7 +221,8 @@ class SerializationSpec extends BaseSpec {
         |    },
         |    "winners" : [ ],
         |    "losers" : [ "David" ],
-        |    "diversityExcluded" : [ ]
+        |    "diversityExcluded" : [ ],
+        |    "exhaustedBallotWeight" : 0
         |  }, {
         |    "firstPlaceVotes" : {
         |      "Alice" : 7,
@@ -223,14 +231,16 @@ class SerializationSpec extends BaseSpec {
         |    },
         |    "winners" : [ "Alice" ],
         |    "losers" : [ ],
-        |    "diversityExcluded" : [ "Carol" ]
+        |    "diversityExcluded" : [ "Carol" ],
+        |    "exhaustedBallotWeight" : 0
         |  }, {
         |    "firstPlaceVotes" : {
         |      "Bob" : 10
         |    },
         |    "winners" : [ "Bob" ],
         |    "losers" : [ ],
-        |    "diversityExcluded" : [ ]
+        |    "diversityExcluded" : [ ],
+        |    "exhaustedBallotWeight" : 0
         |  } ]
         |}""".stripMargin
 

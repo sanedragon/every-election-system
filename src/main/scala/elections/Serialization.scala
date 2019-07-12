@@ -122,19 +122,23 @@ object Serialization {
       (__ \ "firstPlaceVotes").write[Map[String, Double]] and
       (__ \ "winners").write[Seq[String]] and
       (__ \ "losers").write[Seq[String]] and
-      (__ \ "diversityExcluded").write[Seq[String]]
+      (__ \ "diversityProtected").write[Seq[String]] and
+      (__ \ "diversityExcluded").write[Seq[String]] and
+      (__ \ "exhaustedBallotWeight").write[Double]
     )(round => {
       val firstPlaceVotes: Map[String, Double] = round.firstPlaceVotes.map { case (c, v) => c.name -> v }
       val winners = round.winners.map(_.name).toSeq
-      val losers = round.losers.map(_.name).toSeq
+      val losers = round.loser.map(_.name).toSeq
+      val diversityProtected = round.diversityProtected.map(_.name).toSeq
       val diversityExcluded = round.diversityExcluded.map(_.name).toSeq
-      (firstPlaceVotes, winners, losers, diversityExcluded)
+      (firstPlaceVotes, winners, losers, diversityProtected, diversityExcluded, round.exhaustedBallotWeight)
     })
 
     implicit val stvElectionResultWriter: Writes[SingleTransferableVoteElectionResult] = (
       (__ \ "winners").write[Seq[String]] and
+      (__ \ "quota").write[Double] and
       (__ \ "rounds").write[Seq[STVRoundResult]]
-    )(result => (result.winners.map(_.name), result.rounds))
+    )(result => (result.winners.map(_.name), result.quota, result.rounds))
 
     implicit val rrvElectionRoundResultWriter: Writes[RRVElectionRoundResult] = (
       (__ \ "winner").write[String] and

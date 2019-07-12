@@ -24,11 +24,11 @@ class PreferenceMatrix(val candidates: Set[Candidate], val pairwisePreferences: 
     }
   })
 
-  lazy val graph = Graph.from(candidates, directionalPreferences)
+  lazy val graph: Graph[Candidate, Preference] = Graph.from(candidates, directionalPreferences)
 
-  lazy val graphIncludingTies = Graph.from(candidates, nonNegativePreferences)
+  lazy val graphIncludingTies: Graph[Candidate, Preference] = Graph.from(candidates, nonNegativePreferences)
 
-  lazy val nonNegativePreferences = for(
+  lazy val nonNegativePreferences: Set[Preference[Candidate]] = for(
     x <- candidates;
     y <- candidates if x != y && pairwisePreferences((x, y)) >= pairwisePreferences((y, x))
   ) yield Preference(x,y, pairwisePreferences(x,y) - pairwisePreferences(y,x))

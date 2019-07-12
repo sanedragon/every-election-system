@@ -6,8 +6,9 @@ class RankedPairsElectionResult(
                                     val preferenceMatrix: PreferenceMatrix,
                                     val strongestPreferences: Seq[Preference[Candidate]],
                                     val lockedPreferences: Graph[Candidate, Preference],
-                                    val winner: Candidate
-                                  ) extends ElectionResult
+                                    val orderedCandidates: Seq[(Candidate, Double)]
+                                  ) extends ElectionResult {
+}
 
 class RankedBallotRankedPairsElection(val candidates: Set[Candidate]) extends RankedPairsElection[RankedBallot] {
   def calculatePreferenceMatrix(ballots: Seq[RankedBallot]) = PreferenceMatrix.fromRankedBallots(candidates, ballots)
@@ -17,7 +18,7 @@ class ScoreBallotRankedPairsElection(val candidates: Set[Candidate]) extends Ran
   def calculatePreferenceMatrix(ballots: Seq[ScoreBallot]) = PreferenceMatrix.fromScoreBallots(candidates, ballots)
 }
 
-abstract class RankedPairsElection[BallotT <: Ballot] extends Election[BallotT, RankedPairsElectionResult] {
+trait RankedPairsElection[BallotT <: Ballot] extends Election[BallotT, RankedPairsElectionResult] {
   def countBallots(ballots: Seq[BallotT]): RankedPairsElectionResult = {
     val preferenceMatrix = calculatePreferenceMatrix(ballots)
     val strongestPreferences: Seq[Preference[Candidate]] = preferenceMatrix.preferencesLargestFirst
@@ -34,11 +35,21 @@ abstract class RankedPairsElection[BallotT <: Ballot] extends Election[BallotT, 
 
     val acyclicPreferenceGraph: Graph[Candidate, Preference] = Graph.from[Candidate, Preference](candidates, acyclicPreferences)
 
-    val winner = acyclicPreferenceGraph.get(candidates.head)
+    val preliminaryWinner = acyclicPreferenceGraph.get(candidates.head)
       .pathUntil(candidate => !candidate.hasSuccessors).map(_.endNode.value) // Follow the preference graph
       .getOrElse(candidates.head) // Or we started at the winner
 
-    new RankedPairsElectionResult(preferenceMatrix, strongestPreferences, acyclicPreferenceGraph, winner)
+    val orderedCandidates = {
+      // Candidates are ordered by the distance from the winner on the full preference graph, including ties
+      val winnerNode = preferenceMatrix.graphIncludingTies.get(preliminaryWinner)
+      candidates.map(candidate => {
+        val shortestPathWeight = preferenceMatrix.graphIncludingTies.get(candidate)
+          .shortestPathTo(winnerNode).map(_.weight).getOrElse(Double.PositiveInfinity)
+        candidate -> shortestPathWeight
+      }).toSeq.sortBy(_._2)
+    }
+
+    new RankedPairsElectionResult(preferenceMatrix, strongestPreferences, acyclicPreferenceGraph, orderedCandidates)
   }
 
   def calculatePreferenceMatrix(ballots: Seq[BallotT]): PreferenceMatrix

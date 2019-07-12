@@ -23,9 +23,25 @@ class PreferenceMatrixSpec extends BaseSpec {
       ))
   }
 
+  it should "record a candidate that is ranked as preferred to candidates that are not ranked" in {
+    val candidates = Set(alice, bob, carol)
+
+    val ballots = Seq(
+      new RankedBallot(List(alice))
+    )
+
+    val preferenceMatrix = PreferenceMatrix.fromRankedBallots(candidates, ballots)
+
+    preferenceMatrix.pairwisePreferences((alice, bob)) should be (1)
+    preferenceMatrix.pairwisePreferences((alice, carol)) should be (1)
+    preferenceMatrix.pairwisePreferences((bob, carol)) should be (0)
+    preferenceMatrix.pairwisePreferences((carol, alice)) should be (0)
+    preferenceMatrix.pairwisePreferences((carol, bob)) should be (0)
+    preferenceMatrix.pairwisePreferences((bob, alice)) should be (0)
+  }
+
   it should "tabulate a small set of ranked ballots correctly" in {
     val candidates = Set(alice, bob, carol)
-    val election = new RankedBallotRankedPairsElection(candidates)
 
     val ballots = Seq(
       new RankedBallot(List(alice, bob, carol)),

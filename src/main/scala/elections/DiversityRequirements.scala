@@ -12,6 +12,42 @@ case class DiversityRequirements(
   // no more than 8 may be men
   val categories: Set[String] = minimums.keySet ++ maximums.keySet
 
+  def protectedCandidates(
+                           numRemainingPositions: Int,
+                           alreadyElectedCandidates: Set[Candidate],
+                           remainingCandidates: Set[Candidate]
+                         ): Set[Candidate] = {
+    val numCandidatesElectedByCategory: Map[String, Int] = categories.map(category =>
+      category -> alreadyElectedCandidates.count(candidate => candidate.diversityCategories.contains(category))
+    ).toMap
+
+    val remainingCandidatesTowardsMinimums: Map[String, Int] = minimums.keys.map(category =>
+      category -> remainingCandidates.count(candidate => candidate.diversityCategories.contains(category))
+    ).toMap
+
+    val remainingCandidatesWithoutCategory: Map[String, Int] = maximums.keys.map(category =>
+      category -> remainingCandidates.count(candidate => !candidate.diversityCategories.contains(category))
+    ).toMap
+
+    val protectedCategories = minimums.keys.filter(category => {
+      minimums.get(category).exists(minimum =>
+        numCandidatesElectedByCategory(category) + remainingCandidatesTowardsMinimums(category) <= minimum
+      )
+    })
+
+    val protectedAntiCategories = maximums.keys.filter(category => {
+      maximums.get(category).exists(maximum => {
+        val numStillNeededWithoutCategory = numRemainingPositions - (maximum - numCandidatesElectedByCategory(category))
+        remainingCandidatesWithoutCategory(category) <= numStillNeededWithoutCategory
+      })
+    })
+
+    remainingCandidates.filter(candidate =>
+      protectedCategories.exists(category => candidate.diversityCategories.contains(category)) ||
+      protectedAntiCategories.exists(category => !candidate.diversityCategories.contains(category))
+    )
+  }
+
   def excludedCandidates(
                           numRemainingPositions: Int,
                           alreadyElectedCandidates: Set[Candidate],

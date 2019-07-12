@@ -1,6 +1,7 @@
 package elections
 
 class SchulzeElectionSpec extends BaseSpec {
+  //TODO: handle ties
   "A RankedSchulzeElection" should "count correctly for a trivial case" in {
     val election = new RankedSchulzeElection(Set(alice, bob))
 
@@ -30,7 +31,7 @@ class SchulzeElectionSpec extends BaseSpec {
     val firstRound = result.rounds.head
 
     firstRound.schwartzSet should be (Set(alice, bob, carol))
-    firstRound.prunedPreferences.toList should be (List(
+    firstRound.preferences.toList should be (List(
       Preference(carol, alice, 1),
       Preference(bob, carol, 3),
       Preference(alice, bob, 5)
@@ -38,20 +39,20 @@ class SchulzeElectionSpec extends BaseSpec {
 
     val secondRound = result.rounds(1)
     secondRound.schwartzSet should be (Set(alice, bob, carol))
-    secondRound.prunedPreferences.toList should be (List(
+    secondRound.preferences.toList should be (List(
       Preference(bob, carol, 3),
       Preference(alice, bob, 5)
     ))
 
     val thirdRound = result.rounds(2)
     thirdRound.schwartzSet should be (Set(alice, bob))
-    thirdRound.prunedPreferences.toList should be (List(
+    thirdRound.preferences.toList should be (List(
       Preference(alice, bob, 5)
     ))
 
     val fourthRound = result.rounds(3)
     fourthRound.schwartzSet should be (Set(alice))
-    fourthRound.prunedPreferences.toList should be (Nil)
+    fourthRound.preferences.toList should be (Nil)
 
     result.rounds.size should be (4)
 

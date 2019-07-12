@@ -12,16 +12,34 @@ class ScoreSchulzeElection(val candidates: Set[Candidate]) extends SchulzeElecti
   def calculatePreferenceMatrix(ballots: Seq[ScoreBallot]) = PreferenceMatrix.fromScoreBallots(candidates, ballots)
 }
 
-case class SchulzeEliminationRound(val schwartzSet: Set[Candidate], prunedPreferences: List[Preference[Candidate]])
+trait SchulzeEliminationRound {
+  val schwartzSet: Set[Candidate]
+  val preferences: Set[Preference[Candidate]]
+}
+case class CandidateEliminationRound(
+                                      schwartzSet: Set[Candidate],
+                                      preferences: Set[Preference[Candidate]],
+                                      eliminatedCandidates: Set[Candidate]
+                                    ) extends SchulzeEliminationRound {
+  override def toString: String = "CandidateEliminationRound("+eliminatedCandidates+")"
+}
+
+case class PreferenceEliminationRound(
+                                       schwartzSet: Set[Candidate],
+                                       preferences: Set[Preference[Candidate]],
+                                       eliminatedPreferences: Set[Preference[Candidate]]
+                                     ) extends SchulzeEliminationRound {
+  override def toString: String = "PreferenceEliminationRound("+ eliminatedPreferences +")"
+}
 
 abstract class SchulzeElection[BallotT<:Ballot] extends Election[BallotT, SchulzeElectionResult] {
   def countBallots(ballots: Seq[BallotT]): SchulzeElectionResult = {
     val preferenceMatrix = calculatePreferenceMatrix(ballots)
-    val preferences = preferenceMatrix.preferencesSmallestFirst.toList
+    val preferences = preferenceMatrix.directionalPreferences
     SchulzeElectionResult(preferenceMatrix, recurseRound(candidates, preferences))
   }
 
-  def recurseRound(remainingCandidates: Set[Candidate], preferences: List[Preference[Candidate]]): List[SchulzeEliminationRound] = {
+  def recurseRound(remainingCandidates: Set[Candidate], preferences: Set[Preference[Candidate]]): List[SchulzeEliminationRound] = {
     if(preferences.isEmpty) Nil
     else {
       val preferenceGraph: Graph[Candidate, Preference] = Graph.from(remainingCandidates, preferences)
@@ -31,9 +49,15 @@ abstract class SchulzeElection[BallotT<:Ballot] extends Election[BallotT, Schulz
         val schwartzFilteredPreferences = preferences.filter(
           p => schwartzSet.contains(p.yes) && schwartzSet.contains(p.no)
         )
-        SchulzeEliminationRound(schwartzSet, schwartzFilteredPreferences) :: recurseRound(schwartzSet, schwartzFilteredPreferences)
+        CandidateEliminationRound(
+          schwartzSet,
+          schwartzFilteredPreferences,
+          remainingCandidates -- schwartzSet
+        ) :: recurseRound(schwartzSet, schwartzFilteredPreferences)
       } else {
-        SchulzeEliminationRound(schwartzSet, preferences.tail) :: recurseRound(schwartzSet, preferences.tail)
+        val minWeight = preferences.map(_.weight).min
+        val (newPreferences, eliminatedPreferences) = preferences.partition(_.weight > minWeight)
+        PreferenceEliminationRound(schwartzSet, newPreferences, eliminatedPreferences) :: recurseRound(schwartzSet, preferences.tail)
       }
 
 

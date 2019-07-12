@@ -1,31 +1,123 @@
 package elections
 
-class SingleTransferableVoteElectionResult(val rounds: Seq[STVRoundResult]) extends ElectionResult {
+class SingleTransferableVoteElectionResult(val rounds: Seq[STVRoundResult], val quota: Double) extends ElectionResult {
   lazy val winners: Seq[Candidate] = rounds.flatMap(r => r.winners)
 }
 
 case class STVRoundResult(
                            firstPlaceVotes: Map[Candidate, Double],
+                           exhaustedBallotWeight: Double,
                            winners: Set[Candidate],
-                           losers: Set[Candidate],
-                           diversityExcluded: Set[Candidate]
+                           loser: Option[Candidate],
+                           diversityProtected: Set[Candidate],
+                           diversityExcluded: Set[Candidate],
+                           tieBreakResult: Option[TieBreakResult]
                          )
 
 object SingleTransferableVoteElection {
   // Droop Quota is more commonly used, and can be thought of as the smallest number of ballots a candidate can be on
   // where they have a mandate.
-  val DroopQuota: (Int, Int) => Double = (numBallots, numCandidates) => ((numBallots / (numCandidates + 1)) + 1).toDouble
+  // Note that the floor function is implicit in integer division
+  val DroopQuota: (Int, Int) => Double = (numBallots, numCandidates) => (numBallots / (numCandidates + 1)) + 1
 
   // The Hare Quota can be thought of as the largest number of ballots before you have to select that candidate.
   // Using the Hare Quota tends toward under-representing larger groups.
   val HareQuota: (Int, Int) => Double = (numBallots, numCandidates) => numBallots.toDouble / numCandidates
+
+}
+
+trait STVTieBreaker {
+  def breakTie(candidates: Set[Candidate]): TieBreakResult
+}
+
+trait TieBreakResult {
+  def loser: Candidate
+}
+
+case class BordaTieBreakResult(scores: Map[Candidate, Int], orderedCandidates: Seq[Candidate]) extends TieBreakResult {
+  lazy val loser = orderedCandidates.reverse.head
+}
+
+case class BordaSTVTieBreaker(election: SingleTransferableVoteElection, ballots: Seq[RankedBallot]) extends STVTieBreaker {
+  private lazy val bordaScores =
+      new BordaCountElection(election.candidates, election.numPositions).countBallots(ballots).scores
+
+  def breakTie(candidates: Set[Candidate]): BordaTieBreakResult = {
+    val orderedCandidates = candidates.map(c => c -> bordaScores(c)).toSeq.sortBy(-1 * _._2).map(_._1)
+    BordaTieBreakResult(bordaScores, orderedCandidates)
+  }
+}
+
+case class RankedPairsTieBreakResult(electionResult: RankedPairsElectionResult) extends TieBreakResult {
+  lazy val loser = electionResult.orderedCandidates.head._1
+}
+
+case class RankedPairsSTVTieBreaker(ballots: Seq[RankedBallot]) extends STVTieBreaker {
+  def breakTie(candidates: Set[Candidate]): RankedPairsTieBreakResult = {
+    val reversedBallots = ballots.map(b => new RankedBallot(b.ranking.reverse))
+    val tieBreakerElection = new RankedBallotRankedPairsElection(candidates)
+    RankedPairsTieBreakResult(tieBreakerElection.countBallots(reversedBallots))
+  }
+}
+
+trait STVEliminator {
+  def selectLoser(
+                   firstPlaceVoteCountByCandidate: Map[Candidate, Double],
+                   ballots: Seq[RankedBallot],
+                   eligibleCandidates: Set[Candidate]
+                 ): (Option[Candidate], Option[TieBreakResult])
+}
+
+case class FirstPlaceVotesEliminator(tieBreakerFactory: Seq[RankedBallot] => STVTieBreaker) extends STVEliminator {
+  def selectLoser(
+                   firstPlaceVoteCountByCandidate: Map[Candidate, Double],
+                   ballots: Seq[RankedBallot],
+                   eligibleCandidates: Set[Candidate]
+                 ): (Option[Candidate], Option[TieBreakResult]) = {
+
+    val lowestVoteCount = firstPlaceVoteCountByCandidate.filterKeys(eligibleCandidates.contains).values.min
+    val losers = eligibleCandidates.foldLeft(Set.empty[Candidate])((losers, candidate) => {
+      if (firstPlaceVoteCountByCandidate(candidate) == lowestVoteCount) {
+        losers + candidate
+      } else {
+        losers
+      }
+    })
+    if (losers.size == 1) {
+      (Some(losers.head), None)
+    } else {
+      val tieBreaker = tieBreakerFactory(ballots)
+      val tieBreakResult = tieBreaker.breakTie(losers)
+      (Some(tieBreakResult.loser), Some(tieBreakResult))
+    }
+  }
+}
+
+case class RankedPairsEliminator(candidates: Set[Candidate]) extends STVEliminator {
+  val eliminatorElection = new RankedBallotRankedPairsElection(candidates)
+  var maybeResult: Option[RankedPairsElectionResult] = None
+  def selectLoser(
+                   firstPlaceVoteCountByCandidate: Map[Candidate, Double],
+                   ballots: Seq[RankedBallot],
+                   eligibleCandidates: Set[Candidate]
+                 ): (Option[Candidate], Option[TieBreakResult]) = {
+    if (maybeResult.isEmpty) {
+      val reversedBallots = ballots.map(b => new RankedBallot(b.ranking.reverse))
+      val result = eliminatorElection.countBallots(reversedBallots)
+      maybeResult = Some(result)
+    }
+    val result = maybeResult.get
+    val loser = result.orderedCandidates.map(_._1).filter(eligibleCandidates.contains).head
+    (Some(loser), None)
+  }
 }
 
 class SingleTransferableVoteElection(
                                       val candidates: Set[Candidate],
                                       val numPositions: Int,
                                       val quota: (Int, Int) => Double = SingleTransferableVoteElection.DroopQuota,
-                                      val diversityRequirements: DiversityRequirements = DiversityRequirements.none
+                                      val diversityRequirements: DiversityRequirements = DiversityRequirements.none,
+                                      val elimination: STVEliminator = FirstPlaceVotesEliminator(RankedPairsSTVTieBreaker.apply)
                                     ) extends Election[RankedBallot, SingleTransferableVoteElectionResult] {
 
   def countBallots(ballots: Seq[RankedBallot]): SingleTransferableVoteElectionResult = {
@@ -40,7 +132,8 @@ class SingleTransferableVoteElection(
         numPositions,
         candidates,
         Set.empty
-      )
+      ),
+      votesToGetElected
     )
   }
 
@@ -57,49 +150,74 @@ class SingleTransferableVoteElection(
       val zeroTally = remainingCandidates.map(c => c -> 0.0).toMap
       val firstPlaceVoteCountByCandidate: Map[Candidate, Double] =
         ballots.foldLeft(zeroTally)((tally, ballot) => {
-          val candidateVotedFor = ballot.remainingVote.head
-          tally.updated(candidateVotedFor, tally(candidateVotedFor) + ballot.weight)
+          if(ballot.remainingVote.isEmpty) {
+            tally
+          } else {
+            val candidateVotedFor = ballot.remainingVote.head
+            tally.updated(candidateVotedFor, tally(candidateVotedFor) + ballot.weight)
+          }
         })
 
-      val winners: Set[Candidate] = if (remainingCandidates.size == 1 && numPositionsRemaining == 1) {
+      val winners: Set[Candidate] = if (remainingCandidates.size <= numPositionsRemaining) {
         remainingCandidates
       } else {
-        firstPlaceVoteCountByCandidate.foldLeft(Set.empty[Candidate])((winners, p) => {
-          val (candidate, count) = p
-          if (count >= quota) {
-            winners + candidate
-          } else {
-            winners
+        var diversityExcluded = Set.empty[Candidate]
+        firstPlaceVoteCountByCandidate.toSeq
+          .sortBy(-1 * _._2) // most votes first, so that candidates with the most votes get the first shot.
+          .foldLeft(Set.empty[Candidate])(
+          (winners, p) => {
+            val (candidate, count) = p
+            val newWinners = if (count >= quota && !diversityExcluded.contains(candidate)) {
+              winners + candidate
+            } else {
+              winners
+            }
+
+            // Make sure we don't break the diversity requirements if electing multiple candidates at once.
+            diversityExcluded = diversityRequirements.excludedCandidates(
+              numPositionsRemaining - newWinners.size,
+              electedCandidates ++ newWinners,
+              remainingCandidates -- newWinners
+            )
+
+            newWinners
           }
-        })
+        )
       }
 
-      val losers: Set[Candidate] = if (winners.isEmpty) {
-        val lowestVoteCount = firstPlaceVoteCountByCandidate.values.min
-        // It's not very likely with a sizeable electorate that more than one candidate loses here
-        // But to be fair, if they have the same vote count they all have to lose.
-        // This could potentially lead to a tie for last place
-        firstPlaceVoteCountByCandidate.foldLeft(Set.empty[Candidate])((losers, p) => {
-          val (candidate, count) = p
-          if (count == lowestVoteCount) {
-            losers + candidate
-          } else {
-            losers
-          }
-        })
-      } else Set.empty
+      val diversityProtectedCandidates = diversityRequirements.protectedCandidates(
+        numPositionsRemaining,
+        electedCandidates ++ winners,
+        remainingCandidates -- winners
+      )
+
+      val (loser, tieBreakResult): (Option[Candidate], Option[TieBreakResult]) = if (winners.isEmpty) {
+        elimination.selectLoser(
+          firstPlaceVoteCountByCandidate,
+          ballots.map(_.originalBallot),
+          remainingCandidates -- diversityProtectedCandidates
+        )
+      } else (None, None)
 
       val newElectedCandidates = electedCandidates ++ winners
 
       val diversityExcludedCandidates = diversityRequirements.excludedCandidates(
           numPositionsRemaining,
           newElectedCandidates,
-          remainingCandidates -- winners -- losers)
+          remainingCandidates -- winners -- loser)
 
-      val eliminatedCandidates = winners ++ losers ++ diversityExcludedCandidates
+      val eliminatedCandidates = winners ++ loser ++ diversityExcludedCandidates
 
       if (eliminatedCandidates == remainingCandidates) {
-        STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) :: Nil
+        STVRoundResult(
+          firstPlaceVoteCountByCandidate,
+          exhaustedBallotWeight = 0,
+          winners,
+          loser,
+          diversityProtectedCandidates,
+          diversityExcludedCandidates,
+          tieBreakResult
+        ) :: Nil
       } else if (eliminatedCandidates.nonEmpty) {
         val winnerQuotaFactors: Map[Candidate, Double] =
             firstPlaceVoteCountByCandidate.foldLeft(Map.empty[Candidate, Double])((factors, p) => {
@@ -109,15 +227,32 @@ class SingleTransferableVoteElection(
               } else factors
           })
 
-        val newWeightedBallots: Seq[WeightedRankedBallot] = ballots.map(b => {
-          WeightedRankedBallot(
-            b.originalBallot,
-            winnerQuotaFactors.getOrElse(b.remainingVote.head, 1.0) * b.weight,
-            b.remainingVote.filterNot(eliminatedCandidates.contains)
-          )
+        var exhaustedBallotWeight = 0.0
+        val newWeightedBallots: Seq[WeightedRankedBallot] = ballots.flatMap(b => {
+          if(b.remainingVote.isEmpty) {
+            exhaustedBallotWeight += b.weight
+
+            None
+          } else {
+            Some(
+              WeightedRankedBallot(
+                b.originalBallot,
+                winnerQuotaFactors.getOrElse(b.remainingVote.head, 1.0) * b.weight,
+                b.remainingVote.filterNot(eliminatedCandidates.contains)
+              )
+            )
+          }
         })
 
-        STVRoundResult(firstPlaceVoteCountByCandidate, winners, losers, diversityExcludedCandidates) ::
+        STVRoundResult(
+          firstPlaceVoteCountByCandidate,
+          exhaustedBallotWeight,
+          winners,
+          loser,
+          diversityProtectedCandidates,
+          diversityExcludedCandidates,
+          tieBreakResult
+        ) ::
           recurseRound(
             newWeightedBallots,
             quota,

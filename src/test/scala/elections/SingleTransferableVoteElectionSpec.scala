@@ -5,7 +5,8 @@ import org.scalactic.TolerantNumerics
 
 class SingleTransferableVoteElectionSpec extends BaseSpec {
   implicit val closeEnough = TolerantNumerics.tolerantDoubleEquality(0.00000001)
-
+// FIXME: Add test for empty ballot, incomplete ballot, too many candidates eliminated, droop quota not integral
+  // diversity requirements fail caused by multiple winners
   "A SingleTransferableVoteElection" should "count correctly for a trivial case" in {
     val election = new SingleTransferableVoteElection(Set(alice, bob), 1, DroopQuota)
 
