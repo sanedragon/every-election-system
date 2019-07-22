@@ -254,4 +254,40 @@ class SingleTransferableVoteElectionSpec extends BaseSpec {
     result.winners should be (List(alex, erin))
 
   }
+
+  it should "correctly calculate a scenario demonstrating the difference between Droop and Hare quotas" in {
+    /*
+     This illustrates why using the droop quota is good
+     see https://en.wikipedia.org/wiki/Comparison_of_the_Hare_and_Droop_quotas
+      */
+
+    val candidates = Set(alice, bob, carol, zoe, yves, xandra)
+
+    val ballots =
+      (1 to 31).map(_ => new RankedBallot(List(alice, carol, bob))) ++
+        (1 to 30).map(_ => new RankedBallot(List(carol, alice, bob))) ++
+        (1 to 2).map(_ => new RankedBallot(List(bob, alice, carol))) ++
+        (1 to 20).map(_ => new RankedBallot(List(zoe, yves, xandra))) ++
+        (1 to 20).map(_ => new RankedBallot(List(yves, zoe, xandra))) ++
+        (1 to 17).map(_ => new RankedBallot(List(xandra, zoe, yves)))
+
+    val hareElection = new SingleTransferableVoteElection(
+      candidates,
+      numPositions = 5,
+      quota = HareQuota
+    )
+
+    val droopElection = new SingleTransferableVoteElection(
+      candidates,
+      numPositions = 5,
+      quota = DroopQuota
+    )
+
+    val hareResult = hareElection.countBallots(ballots)
+    val droopResult = droopElection.countBallots(ballots)
+
+    hareResult.winners should be (List(alice, carol, yves, zoe, xandra))
+    droopResult.winners should be (List(alice, carol, bob, yves, zoe))
+
+  }
 }
