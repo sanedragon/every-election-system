@@ -134,45 +134,96 @@ object Serialization {
       }
     }
 
+    private implicit val writesCandidate: Writes[Candidate] = Writes[Candidate]((c: Candidate) => JsString(c.name))
+    private implicit val writesCandidateBigDecimalMap: Writes[Map[Candidate, BigDecimal]] =
+      Writes[Map[Candidate, BigDecimal]](m =>
+        JsObject(m.toSeq.sortBy(_._1.name).map { case (c: Candidate, n: BigDecimal) =>
+            c.name -> JsNumber(n.setScale(3, RoundingMode.HALF_UP))
+        })
+      )
+
+    private implicit val writesTieBreakResult: Writes[TieBreakResult] = Writes[TieBreakResult] {
+      case r: RankedPairsTieBreakResult => JsObject(Seq(
+        "loser" -> Json.toJson(r.loser),
+        "rankedPairsResult" -> Json.toJson(r.electionResult)
+      ))
+      case r => JsObject(Seq(
+        "loser" -> Json.toJson(r.loser),
+        "details" -> JsString(r.toString)
+      ))
+    }
+
     implicit val stvRoundResultWriter: Writes[STVRoundResult] = (
-      (__ \ "firstPlaceVotes").write[Map[String, BigDecimal]] and
-      (__ \ "winners").write[Seq[String]] and
-      (__ \ "losers").write[Seq[String]] and
-      (__ \ "diversityProtected").write[Seq[String]] and
-      (__ \ "diversityExcluded").write[Seq[String]] and
-      (__ \ "exhaustedBallotWeight").write[BigDecimal]
+      (__ \ "firstPlaceVotes").write[Map[Candidate, BigDecimal]] and
+      (__ \ "winners").write[Seq[Candidate]] and
+      (__ \ "losers").write[Seq[Candidate]] and
+      (__ \ "diversityProtected").write[Seq[Candidate]] and
+      (__ \ "diversityExcluded").write[Seq[Candidate]] and
+      (__ \ "exhaustedBallotWeight").write[BigDecimal] and
+        (__ \ "tieBreaker").writeNullable[TieBreakResult]
     )(round => {
-      val firstPlaceVotes: Map[String, BigDecimal] = round.firstPlaceVotes.map {
-        case (c, v) => c.name -> v.setScale(3, RoundingMode.HALF_UP)
-      }
-      val winners = round.winners.map(_.name).toSeq
-      val losers = round.loser.map(_.name).toSeq
-      val diversityProtected = round.diversityProtected.map(_.name).toSeq
-      val diversityExcluded = round.diversityExcluded.map(_.name).toSeq
-      (firstPlaceVotes, winners, losers, diversityProtected, diversityExcluded,
-        round.exhaustedBallotWeight.setScale(3, RoundingMode.HALF_UP))
+      val winners = round.winners.toSeq.sortBy(_.name)
+      val losers = round.loser.toSeq.sortBy(_.name)
+      val diversityProtected = round.diversityProtected.toSeq
+      val diversityExcluded = round.diversityExcluded.toSeq
+      (round.firstPlaceVotes, winners, losers, diversityProtected, diversityExcluded,
+        round.exhaustedBallotWeight.setScale(3, RoundingMode.HALF_UP),
+        round.tieBreakResult
+      )
     })
 
     implicit val stvElectionResultWriter: Writes[SingleTransferableVoteElectionResult] = (
-      (__ \ "winners").write[Seq[String]] and
+      (__ \ "winners").write[Seq[Candidate]] and
       (__ \ "quota").write[BigDecimal] and
       (__ \ "rounds").write[Seq[STVRoundResult]]
-    )(result => (result.winners.map(_.name), result.quota, result.rounds))
+    )(result => (result.winners, result.quota, result.rounds))
 
     implicit val rrvElectionRoundResultWriter: Writes[RRVElectionRoundResult] = (
-      (__ \ "winner").write[String] and
+      (__ \ "winner").write[Candidate] and
       (__ \ "scores").write[Map[String, BigDecimal]] and
-      (__ \ "diversityExcluded").write[Seq[String]]
+      (__ \ "diversityExcluded").write[Seq[Candidate]]
     )(round => {
-      val winner = round.winner.name
       val scores = round.scores.map { case (c, v) => c.name -> v.setScale(3, RoundingMode.HALF_UP) }
-      val diversityExcluded = round.diversityExcluded.map(_.name).toSeq
-      (winner, scores, diversityExcluded)
+      val diversityExcluded = round.diversityExcluded.toSeq
+      (round.winner, scores, diversityExcluded)
     })
 
     implicit val rrvElectionResultWriter: Writes[RRVElectionResult] = (
-      (__ \ "winners").write[Seq[String]] and
+      (__ \ "winners").write[Seq[Candidate]] and
       (__ \ "rounds").write[Seq[RRVElectionRoundResult]]
-    )(result => (result.winners.map(_.name), result.rounds))
+    )(result => (result.winners, result.rounds))
 
+    implicit val preferenceWriter: Writes[Preference[Candidate]] = (
+      (__ \ "over").write[Candidate] and
+        (__ \ "under").write[Candidate] and
+        (__ \ "strength").write[BigDecimal]
+    )(pref => (pref.yes, pref.no, BigDecimal(pref.strength).setScale(3, RoundingMode.HALF_UP)))
+
+    implicit val preferenceMatrixWriter: Writes[PreferenceMatrix] = (
+        (__ \ "summed").write[Seq[Preference[Candidate]]] and
+          (__ \ "all").write[Seq[Preference[Candidate]]]
+    )(pm => {
+      (
+        pm.nonNegativePreferences.toSeq.sortBy(p => (p.yes.name, p.no.name)),
+        pm.allPreferences.toSeq.sortBy(p => (p.yes.name, p.no.name))
+      )
+    })
+
+    private case class RankedPairsTie(place: Int, candidates: Set[Candidate])
+    private implicit val writesRankedPairsTie: Writes[RankedPairsTie] = (
+      (__ \ "place").write[Int] and
+        (__ \ "candidates").write[Seq[Candidate]]
+    )(rpt => (rpt.place, rpt.candidates.toSeq.sortBy(_.name)))
+
+    implicit val rankedPairsElectionResultWriter: Writes[RankedPairsElectionResult] = (
+      (__ \ "candidateOrder").write[Seq[Candidate]] and
+        (__ \ "winDistance").write[Map[Candidate, BigDecimal]] and
+        (__ \ "ties").write[Seq[RankedPairsTie]] and
+        (__ \ "preferences").write[PreferenceMatrix]
+    )(result => (
+      result.orderedCandidates,
+      result.candidatesByWinDistance.mapValues(BigDecimal(_)),
+      result.tiesByPlace.toSeq.map { case (place, candidates) => RankedPairsTie(place, candidates) },
+      result.preferenceMatrix
+    ))
 }

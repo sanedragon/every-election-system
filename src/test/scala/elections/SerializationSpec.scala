@@ -304,4 +304,99 @@ class SerializationSpec extends BaseSpec {
 
     Json.prettyPrint(resultJson) shouldBe expected
   }
+
+  it should "serialize a Ranked Pairs election result" in {
+    val preferences: Map[(Candidate, Candidate), Double] = Map(
+      (alice, bob) -> 5,
+      (alice, carol) -> 5,
+      (bob, alice) -> 3,
+      (bob, carol) -> 4,
+      (carol, alice) -> 3,
+      (carol, bob) -> 4
+    )
+
+    // alice > bob 2
+    // alice > carol 2
+    // carol = bob 0
+
+    val preferenceMatrix = new PreferenceMatrix(Set(alice, bob, carol), preferences)
+    val election = new RankedPairsElection[Ballot] {
+      def calculatePreferenceMatrix(ballots: Seq[Ballot]): PreferenceMatrix = preferenceMatrix
+      val candidates = Set(alice, bob, carol)
+    }
+
+    val result = election.countBallots(Seq.empty)
+
+    import Serialization.rankedPairsElectionResultWriter
+
+    // Due to ties, ordering of bob and carol is random
+    assert(
+      result.orderedCandidates == Seq(alice, bob, carol) ||
+        result.orderedCandidates == Seq(alice, carol, bob)
+    )
+
+    val candidateOrder = Json.prettyPrint(Json.toJson(result.orderedCandidates.map(_.name)))
+
+    val resultJson = Json.toJson(result)
+
+    val expected =
+      s"""{
+        |  "candidateOrder" : $candidateOrder,
+        |  "winDistance" : {
+        |    "Alice" : 0,
+        |    "Bob" : 2,
+        |    "Carol" : 2
+        |  },
+        |  "ties" : [ {
+        |    "place" : 2,
+        |    "candidates" : [ "Bob", "Carol" ]
+        |  } ],
+        |  "preferences" : {
+        |    "summed" : [ {
+        |      "over" : "Alice",
+        |      "under" : "Bob",
+        |      "strength" : 2
+        |    }, {
+        |      "over" : "Alice",
+        |      "under" : "Carol",
+        |      "strength" : 2
+        |    }, {
+        |      "over" : "Bob",
+        |      "under" : "Carol",
+        |      "strength" : 0
+        |    }, {
+        |      "over" : "Carol",
+        |      "under" : "Bob",
+        |      "strength" : 0
+        |    } ],
+        |    "all" : [ {
+        |      "over" : "Alice",
+        |      "under" : "Bob",
+        |      "strength" : 5
+        |    }, {
+        |      "over" : "Alice",
+        |      "under" : "Carol",
+        |      "strength" : 5
+        |    }, {
+        |      "over" : "Bob",
+        |      "under" : "Alice",
+        |      "strength" : 3
+        |    }, {
+        |      "over" : "Bob",
+        |      "under" : "Carol",
+        |      "strength" : 4
+        |    }, {
+        |      "over" : "Carol",
+        |      "under" : "Alice",
+        |      "strength" : 3
+        |    }, {
+        |      "over" : "Carol",
+        |      "under" : "Bob",
+        |      "strength" : 4
+        |    } ]
+        |  }
+        |}""".stripMargin
+
+    Json.prettyPrint(resultJson) shouldBe expected
+  }
 }

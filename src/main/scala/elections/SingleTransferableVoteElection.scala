@@ -51,13 +51,13 @@ case class BordaSTVTieBreaker(election: SingleTransferableVoteElection, ballots:
 }
 
 case class RankedPairsTieBreakResult(electionResult: RankedPairsElectionResult) extends TieBreakResult {
-  lazy val loser = electionResult.orderedCandidates.head._1
+  lazy val loser: Candidate = electionResult.orderedCandidates.head
 }
 
 case class RankedPairsSTVTieBreaker(ballots: Seq[RankedBallot]) extends STVTieBreaker {
   def breakTie(candidates: Set[Candidate]): RankedPairsTieBreakResult = {
-    val reversedBallots = ballots.map(b => new RankedBallot(b.ranking.reverse))
-    val tieBreakerElection = new RankedBallotRankedPairsElection(candidates)
+    val reversedBallots = ballots.map(b => new RankedBallot(b.ranking))
+    val tieBreakerElection = new RankedBallotRankedPairsElection(candidates, reverse = true)
     RankedPairsTieBreakResult(tieBreakerElection.countBallots(reversedBallots))
   }
 }
@@ -108,7 +108,7 @@ case class RankedPairsEliminator(candidates: Set[Candidate]) extends STVEliminat
       maybeResult = Some(result)
     }
     val result = maybeResult.get
-    val loser = result.orderedCandidates.map(_._1).filter(eligibleCandidates.contains).head
+    val loser = result.orderedCandidates.filter(eligibleCandidates.contains).head
     (Some(loser), None)
   }
 }

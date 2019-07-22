@@ -9,12 +9,12 @@ import scalax.collection.edge._
  */
 class PreferenceMatrix(val candidates: Set[Candidate], val pairwisePreferences: Map[(Candidate, Candidate), Double]) {
 
-  lazy val candidatePairs = for(
+  private lazy val candidatePairs = for(
     x <- candidates;
     y <- candidates if x != y
   ) yield (x,y)
 
-  lazy val directionalPreferences = candidatePairs.flatMap(p => {
+  lazy val directionalPreferences: Iterable[Preference[Candidate]] = candidatePairs.flatMap(p => {
     val strength = pairwisePreferences(p)
     val reverseStrength = pairwisePreferences((p._2, p._1))
     if (strength > reverseStrength) {
@@ -23,6 +23,9 @@ class PreferenceMatrix(val candidates: Set[Candidate], val pairwisePreferences: 
       None
     }
   })
+
+  lazy val allPreferences: Iterable[Preference[Candidate]] =
+    pairwisePreferences.map(p => Preference(p._1._1, p._1._2, p._2))
 
   lazy val graph: Graph[Candidate, Preference] = Graph.from(candidates, directionalPreferences)
 
@@ -33,19 +36,16 @@ class PreferenceMatrix(val candidates: Set[Candidate], val pairwisePreferences: 
     y <- candidates if x != y && pairwisePreferences((x, y)) >= pairwisePreferences((y, x))
   ) yield Preference(x,y, pairwisePreferences(x,y) - pairwisePreferences(y,x))
 
-  lazy val preferencesSmallestFirst = directionalPreferences.toSeq.sortBy(_.strength)
+  lazy val preferencesSmallestFirst: Seq[Preference[Candidate]] = directionalPreferences.toSeq.sortBy(_.strength)
 
-  lazy val preferencesLargestFirst = preferencesSmallestFirst.reverse
+  lazy val preferencesLargestFirst: Seq[Preference[Candidate]] = preferencesSmallestFirst.reverse
 
-  lazy val summedPreferenceGraph = Graph.from(candidates, directionalPreferences)
+  lazy val schwartzSet: Set[Candidate] = PreferenceMatrix.calculateSchwartzSet(graph)
 
-  lazy val schwartzSet = PreferenceMatrix.calculateSchwartzSet(graph)
-
-  lazy val description = {
-    pairwisePreferences.seq.toList.sortBy(-1 * _._2).map((tuple) => {
-      val ((x, y), numVoters) = tuple
+  lazy val description: String = {
+    pairwisePreferences.seq.toList.sortBy(-1 * _._2).map { case ((x, y), numVoters) =>
       numVoters.toString + " prefer " + x.name + " over " + y.name
-    }).mkString("\n")
+    }.mkString("\n")
   }
 }
 
@@ -83,9 +83,9 @@ object PreferenceMatrix {
       })})
     })
 
-    new PreferenceMatrix(candidates, tally.toMap.map(_ match {
+    new PreferenceMatrix(candidates, tally.toMap.map {
       case (candidatePair: (Candidate, Candidate), strength: Int) => candidatePair -> strength.toDouble
-    }).withDefaultValue(0))
+    }.withDefaultValue(0))
   }
 
   val normalizedScoresToPreferenceUsingDifference: (Option[Double], Option[Double]) => Double =
@@ -124,9 +124,9 @@ object PreferenceMatrix {
     })
 
 
-    new PreferenceMatrix(candidates, tally.toMap.map(_ match {
+    new PreferenceMatrix(candidates, tally.toMap.map {
       case (candidatePair: (Candidate, Candidate), strength: Double) => candidatePair -> strength.toDouble
-    }).withDefaultValue(0))
+    }.withDefaultValue(0))
   }
 
   // Floyd-Warshall isn't the most efficient algorithm for this but it is easy to implement

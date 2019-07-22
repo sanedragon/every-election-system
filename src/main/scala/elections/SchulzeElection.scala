@@ -35,7 +35,7 @@ case class PreferenceEliminationRound(
 abstract class SchulzeElection[BallotT<:Ballot] extends Election[BallotT, SchulzeElectionResult] {
   def countBallots(ballots: Seq[BallotT]): SchulzeElectionResult = {
     val preferenceMatrix = calculatePreferenceMatrix(ballots)
-    val preferences = preferenceMatrix.directionalPreferences
+    val preferences = preferenceMatrix.directionalPreferences.toSet
     SchulzeElectionResult(preferenceMatrix, recurseRound(candidates, preferences))
   }
 
